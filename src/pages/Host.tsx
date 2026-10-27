@@ -5,6 +5,8 @@ import { QRCodeSVG } from "qrcode.react";
 import ConfusionMeter from "../components/ConfusionMeter";
 import { useLiveConfusion } from "../hooks/useLiveConfusion";
 import SlideBreakdown from "../components/SlideBreakdown";
+import ConfusionAlertBanner from "../components/ConfusionAlertBanner";
+import { useThresholdAlert } from "../hooks/useThresholdAlert";
 import {
   createSession,
   setCurrentSlide,
@@ -33,6 +35,18 @@ export default function Host() {
   }
 
   const { stats, bySlide, connected } = useLiveConfusion(session?.id);
+
+  const { alert, dismiss } = useThresholdAlert(
+    stats,
+    session?.current_slide ?? 1,
+  );
+
+  // Show the alert in the browser tab too, in case the host is in another tab
+  useEffect(() => {
+    document.title = alert
+      ? `⚠ ${alert.percent}% lost · Confusion Heatmap`
+      : "Confusion Heatmap";
+  }, [alert]);
 
   async function goTo(slide: number) {
     if (!session) return;
@@ -102,6 +116,14 @@ export default function Host() {
 
   return (
     <main className="host host--live">
+      {alert && (
+        <ConfusionAlertBanner
+          alert={alert}
+          currentSlide={session.current_slide}
+          onGoTo={goTo}
+          onDismiss={dismiss}
+        />
+      )}
       <section className="host__stage">
         {session.slides_url ? (
           <SlideViewer url={session.slides_url} page={session.current_slide} />
