@@ -26,11 +26,12 @@ export type Session = {
   room_code: string;
   current_slide: number;
   slide_count: number | null;
+  slides_url: string | null;
   ended_at: string | null;
 };
 
 export const SESSION_COLUMNS =
-  "id, room_code, current_slide, slide_count, ended_at";
+  "id, room_code, current_slide, slide_count, slides_url, ended_at";
 
 export async function createSession(): Promise<Session> {
   const user = await ensureSignedIn();

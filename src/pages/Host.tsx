@@ -1,4 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, type ChangeEvent } from "react";
+import SlideViewer from "../components/SlideViewer";
+import { uploadSlides } from "../lib/slides";
 import { QRCodeSVG } from "qrcode.react";
 import ConfusionMeter from "../components/ConfusionMeter";
 import { useLiveConfusion } from "../hooks/useLiveConfusion";
@@ -13,6 +15,7 @@ export default function Host() {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
 
   async function handleStart() {
     setLoading(true);
@@ -43,6 +46,21 @@ export default function Host() {
     } catch (e) {
       setSession((s) => (s ? { ...s, current_slide: previous } : s)); // undo on failure
       setError((e as { message?: string }).message ?? "Couldn't change slide.");
+    }
+  }
+
+  async function handleFile(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file || !session) return;
+    setUploading(true);
+    setError(null);
+    try {
+      setSession(await uploadSlides(session.id, file));
+    } catch (err) {
+      setError((err as { message?: string }).message ?? "Upload failed.");
+    } finally {
+      setUploading(false);
+      e.target.value = ""; // lets you pick the same file again
     }
   }
 
@@ -83,17 +101,33 @@ export default function Host() {
 
   return (
     <main className="host host--live">
-      <div className="host__join">
-        <div className="host__qr">
-          <QRCodeSVG value={joinUrl} size={240} marginSize={2} />
-        </div>
-        <p className="host__label">
-          Or go to {new URL(joinUrl).host}/join and enter
-        </p>
-        <p className="host__code">{session.room_code}</p>
-      </div>
+      <section className="host__stage">
+        {session.slides_url ? (
+          <SlideViewer url={session.slides_url} page={session.current_slide} />
+        ) : (
+          <label className="host__upload">
+            <input
+              type="file"
+              accept="application/pdf"
+              onChange={handleFile}
+              disabled={uploading}
+              hidden
+            />
+            <span>{uploading ? "Uploading…" : "Upload slides (PDF)"}</span>
+            <small>Or skip this and present with Prev / Next</small>
+          </label>
+        )}
+      </section>
 
-      <section className="host__side">
+      <aside className="host__side">
+        <div className="host__join">
+          <div className="host__qr">
+            <QRCodeSVG value={joinUrl} size={160} marginSize={2} />
+          </div>
+          <p className="host__label">{new URL(joinUrl).host}/join</p>
+          <p className="host__code">{session.room_code}</p>
+        </div>
+
         <ConfusionMeter stats={stats} connected={connected} />
 
         <div className="host__controls">
@@ -107,13 +141,19 @@ export default function Host() {
             Slide {session.current_slide}
             {session.slide_count ? ` / ${session.slide_count}` : ""}
           </span>
-          <button onClick={() => goTo(session.current_slide + 1)}>
+          <button
+            onClick={() => goTo(session.current_slide + 1)}
+            disabled={
+              session.slide_count !== null &&
+              session.current_slide >= session.slide_count
+            }
+          >
             Next →
           </button>
         </div>
 
         {error && <p className="host__error">{error}</p>}
-      </section>
+      </aside>
     </main>
   );
 }
