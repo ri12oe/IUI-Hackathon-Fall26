@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router";
 import { joinSession, type Session } from "../lib/session";
 import StudentRoom from "../components/StudentRoom";
+import { useSessionUpdates } from "../hooks/useSessionUpdates";
 import "./Join.scss";
 
 export default function Join() {
@@ -12,6 +13,8 @@ export default function Join() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const autoJoinTried = useRef(false);
+
+  useSessionUpdates(session?.id, setSession);
 
   async function join(roomCode: string) {
     if (!/^[A-Z]{4}$/.test(roomCode)) {
