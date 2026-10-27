@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
+import ConfusionMeter from "../components/ConfusionMeter";
+import { useLiveConfusion } from "../hooks/useLiveConfusion";
 import { createSession, type Session } from "../lib/session.ts";
 import "./Host.scss";
 
@@ -20,6 +22,8 @@ export default function Host() {
     }
   }
   
+  const { stats, connected } = useLiveConfusion(session?.id);
+  
   if (!session) {
     return (
         <main className="host">
@@ -35,12 +39,16 @@ export default function Host() {
   const joinUrl = `${window.location.origin}/join?code=${session.room_code}`;
 
   return (
-    <main className="host">
-        <div className="host__qr">
-            <QRCodeSVG value={joinUrl} size={240} marginSize={2} />
-        </div>
-        <p className="host__label">or go to {window.location.host}/join and enter the room code</p>
-        <p className="host__code">{session.room_code}</p>
-    </main>
-  );
+  <main className="host host--live">
+    <div className="host__join">
+      <div className="host__qr">
+        <QRCodeSVG value={joinUrl} size={240} marginSize={2} />
+      </div>
+      <p className="host__label">Or go to {new URL(joinUrl).host}/join and enter</p>
+      <p className="host__code">{session.room_code}</p>
+    </div>
+
+    <ConfusionMeter stats={stats} connected={connected} />
+  </main>
+);
 }

@@ -1,0 +1,59 @@
+.meter {
+  --accent: #4caf7a;
+  &--medium { --accent: #f2b134; }
+  &--high   { --accent: #e8590c; }
+
+  display: grid;
+  gap: 0.5rem;
+  justify-items: center;
+  padding: 1.5rem 2rem;
+  border-radius: 1.25rem;
+  background: #1a1d24;
+  min-width: 260px;
+
+  &__label {
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+    opacity: 0.7;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+
+  &__dot {
+    width: 0.6rem;
+    height: 0.6rem;
+    border-radius: 50%;
+    background: #777;
+    &.is-live { background: #4caf7a; }
+  }
+
+  &__percent {
+    margin: 0;
+    font-size: clamp(3.5rem, 10vw, 6rem);
+    font-weight: 800;
+    color: var(--accent);
+    line-height: 1;
+    transition: color 0.3s;
+  }
+
+  &__caption { margin: 0; opacity: 0.7; }
+
+  &__bar {
+    width: 100%;
+    height: 0.6rem;
+    border-radius: 999px;
+    background: #2c313b;
+    overflow: hidden;
+  }
+
+  &__fill {
+    height: 100%;
+    background: var(--accent);
+    transition: width 0.4s ease, background 0.3s;
+  }
+
+  &__counts { margin: 0; font-size: 0.9rem; opacity: 0.6; }
+}

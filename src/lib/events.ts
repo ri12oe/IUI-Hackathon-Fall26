@@ -24,7 +24,7 @@ export async function fetchRecentEvents(sessionId: string): Promise<ConfusionEve
 
   const { data, error } = await supabase
     .from("events")
-    .select("device_id, type, slide, created_at")
+    .select("id, device_id, type, slide, created_at")
     .eq("session_id", sessionId)
     .gte("created_at", since);
 

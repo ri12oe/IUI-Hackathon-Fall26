@@ -4,6 +4,7 @@ export const LOST_WINDOW_MS = 60_000; // a lost tap counts for 60s
 export const ACTIVE_WINDOW_MS = 120_000; // a device is active if seen in the last 2 min
 
 export type ConfusionEvent = {
+    id?: string;
     device_id: string;
     type: EventType;
     slide: number;
