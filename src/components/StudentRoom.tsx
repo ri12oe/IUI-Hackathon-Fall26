@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { sendEvent, type EventType } from "../lib/events";
 import type { Session } from "../lib/session";
 import "./StudentRoom.scss";
+import { LOST_WINDOW_MS } from "../lib/confusion";
 
-const LOST_WINDOW_MS = 60_000; // a "lost" tap counts for 60s
 const HEARTBEAT_MS = 30_000; // "still here" ping every 30s
 const TAP_COOLDOWN_MS = 3_000; // ignore rapid repeat taps
 
