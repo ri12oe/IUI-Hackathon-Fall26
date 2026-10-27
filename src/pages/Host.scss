@@ -38,6 +38,19 @@
     font-size: 0.9rem;
   }
 
+  &__qr {
+    justify-self: center;
+    background: #fff;
+    padding: 1rem;
+    border-radius: 1rem;
+
+    svg {
+        display: block;
+        width: min(60vw, 320px);
+        height: auto;
+    }
+  }
+
   &__error {
     color: #ff6b6b;
   }

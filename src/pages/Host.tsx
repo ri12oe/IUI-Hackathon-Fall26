@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { QRCodeSVG } from "qrcode.react";
 import { createSession, type Session } from "../lib/session.ts";
 import "./Host.scss";
 
@@ -35,9 +36,11 @@ export default function Host() {
 
   return (
     <main className="host">
-        <p className="host__label">Room code</p>
+        <div className="host__qr">
+            <QRCodeSVG value={joinUrl} size={240} marginSize={2} />
+        </div>
+        <p className="host__label">or go to {window.location.host}/join and enter the room code</p>
         <p className="host__code">{session.room_code}</p>
-        <p className="host__url">{joinUrl}</p>
     </main>
   );
 }
