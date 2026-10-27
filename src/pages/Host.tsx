@@ -4,6 +4,7 @@ import { uploadSlides } from "../lib/slides";
 import { QRCodeSVG } from "qrcode.react";
 import ConfusionMeter from "../components/ConfusionMeter";
 import { useLiveConfusion } from "../hooks/useLiveConfusion";
+import SlideBreakdown from "../components/SlideBreakdown";
 import {
   createSession,
   setCurrentSlide,
@@ -31,7 +32,7 @@ export default function Host() {
     }
   }
 
-  const { stats, connected } = useLiveConfusion(session?.id);
+  const { stats, bySlide, connected } = useLiveConfusion(session?.id);
 
   async function goTo(slide: number) {
     if (!session) return;
@@ -151,6 +152,12 @@ export default function Host() {
             Next →
           </button>
         </div>
+
+        <SlideBreakdown
+          items={bySlide}
+          currentSlide={session.current_slide}
+          onSelect={goTo}
+        />
 
         {error && <p className="host__error">{error}</p>}
       </aside>

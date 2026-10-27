@@ -1,14 +1,22 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../lib/supabase";
-import { fetchRecentEvents } from "../lib/events";
+import { fetchLostEvents, fetchRecentEvents } from "../lib/events";
 import {
   computeConfusion,
+  confusionBySlide,
   ACTIVE_WINDOW_MS,
   type ConfusionEvent,
 } from "../lib/confusion";
 
+// Merge new events into a list, skipping ones already there
+function merge(prev: ConfusionEvent[], incoming: ConfusionEvent[]) {
+  const ids = new Set(prev.map((e) => e.id));
+  return [...prev, ...incoming.filter((e) => !ids.has(e.id))];
+}
+
 export function useLiveConfusion(sessionId: string | undefined) {
-  const [events, setEvents] = useState<ConfusionEvent[]>([]);
+  const [recent, setRecent] = useState<ConfusionEvent[]>([]);     // last 2 min, for the meter
+  const [lostAll, setLostAll] = useState<ConfusionEvent[]>([]);   // every lost tap, for the slide list
   const [now, setNow] = useState(0);
   const [connected, setConnected] = useState(false);
 
@@ -16,15 +24,16 @@ export function useLiveConfusion(sessionId: string | undefined) {
     if (!sessionId) return;
     let cancelled = false;
 
-    // Add events, skip duplicates, and drop anything too old to matter
-    const add = (incoming: ConfusionEvent[]) => {
-      setEvents((prev) => {
-        const ids = new Set(prev.map((e) => e.id));
+    const addRecent = (incoming: ConfusionEvent[]) => {
+      setRecent((prev) => {
         const cutoff = Date.now() - ACTIVE_WINDOW_MS;
-        return [...prev, ...incoming.filter((e) => !ids.has(e.id))].filter(
-          (e) => Date.parse(e.created_at) >= cutoff
-        );
+        return merge(prev, incoming).filter((e) => Date.parse(e.created_at) >= cutoff);
       });
+    };
+
+    const addLost = (incoming: ConfusionEvent[]) => {
+      const lost = incoming.filter((e) => e.type === "lost");
+      if (lost.length) setLostAll((prev) => merge(prev, lost));
     };
 
     const channel = supabase
@@ -37,14 +46,20 @@ export function useLiveConfusion(sessionId: string | undefined) {
           table: "events",
           filter: `session_id=eq.${sessionId}`,
         },
-        (payload) => add([payload.new as ConfusionEvent])
+        (payload) => {
+          const e = payload.new as ConfusionEvent;
+          addRecent([e]);
+          addLost([e]);
+        }
       )
       .subscribe((status) => {
         setConnected(status === "SUBSCRIBED");
         if (status === "SUBSCRIBED") {
-          // Load recent history once live updates are flowing (also after reconnects)
           fetchRecentEvents(sessionId)
-            .then((rows) => !cancelled && add(rows))
+            .then((rows) => !cancelled && addRecent(rows))
+            .catch(console.error);
+          fetchLostEvents(sessionId)
+            .then((rows) => !cancelled && addLost(rows))
             .catch(console.error);
         }
       });
@@ -55,7 +70,6 @@ export function useLiveConfusion(sessionId: string | undefined) {
     };
   }, [sessionId]);
 
-  // Tick every second so lost taps fade out on time
   useEffect(() => {
     const updateNow = () => setNow(Date.now());
     const initialUpdate = setTimeout(updateNow, 0);
@@ -66,7 +80,8 @@ export function useLiveConfusion(sessionId: string | undefined) {
     };
   }, []);
 
-  const stats = useMemo(() => computeConfusion(events, now), [events, now]);
+  const stats = useMemo(() => computeConfusion(recent, now), [recent, now]);
+  const bySlide = useMemo(() => confusionBySlide(lostAll), [lostAll]);
 
-  return { stats, connected };
+  return { stats, bySlide, connected };
 }

@@ -50,3 +50,20 @@ export function computeConfusion (
         percent: active.size ? Math.round((lost / active.size) * 100) : 0,
     };
 }
+
+export type SlideConfusion = { slide: number; lost: number };
+
+// How many different students tapped "lost" on each slide, worst first
+export function confusionBySlide(events: ConfusionEvent[]): SlideConfusion[] {
+  const bySlide = new Map<number, Set<string>>();
+
+  for (const e of events) {
+    if (e.type !== "lost") continue;
+    if (!bySlide.has(e.slide)) bySlide.set(e.slide, new Set());
+    bySlide.get(e.slide)!.add(e.device_id);
+  }
+
+  return [...bySlide]
+    .map(([slide, devices]) => ({ slide, lost: devices.size }))
+    .sort((a, b) => b.lost - a.lost || a.slide - b.slide);
+}

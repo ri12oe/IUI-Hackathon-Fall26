@@ -31,3 +31,14 @@ export async function fetchRecentEvents(sessionId: string): Promise<ConfusionEve
   if (error) throw error;
   return data as ConfusionEvent[];
 }
+
+export async function fetchLostEvents(sessionId: string): Promise<ConfusionEvent[]> {
+  const { data, error } = await supabase
+    .from("events")
+    .select("id, device_id, type, slide, created_at")
+    .eq("session_id", sessionId)
+    .eq("type", "lost");
+
+  if (error) throw error;
+  return data as ConfusionEvent[];
+}

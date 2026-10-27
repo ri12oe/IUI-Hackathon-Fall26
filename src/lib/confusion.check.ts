@@ -1,4 +1,5 @@
 import { computeConfusion, type ConfusionEvent } from "./confusion";
+import { confusionBySlide } from "./confusion";
 
 const now = Date.parse("2026-10-27T15:00:00Z");
 const ago = (s: number) => new Date(now - s * 1000).toISOString();
@@ -20,3 +21,18 @@ for (const [name, events, expected] of cases) {
   const ok = JSON.stringify(got) === JSON.stringify(expected);
   console.log(`${ok ? "PASS" : "FAIL"}  ${name}`, ok ? "" : { got, expected });
 }
+
+const slideEvents = [
+  { ...ev("a", "lost", 30), slide: 4 },
+  { ...ev("a", "lost", 20), slide: 4 }, // same student twice: counts once
+  { ...ev("b", "lost", 10), slide: 4 },
+  { ...ev("a", "lost", 5),  slide: 7 },
+  { ...ev("c", "heartbeat", 5), slide: 7 }, // heartbeats ignored
+];
+const bySlide = confusionBySlide(slideEvents);
+const expectedBySlide = [{ slide: 4, lost: 2 }, { slide: 7, lost: 1 }];
+console.log(
+  JSON.stringify(bySlide) === JSON.stringify(expectedBySlide) ? "PASS" : "FAIL",
+  " confusion by slide",
+  bySlide
+);
