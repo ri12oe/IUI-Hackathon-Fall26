@@ -1,0 +1,44 @@
+.host {
+  min-height: 100vh;
+  display: grid;
+  place-content: center;
+  text-align: center;
+  gap: 1rem;
+  padding: 1rem;
+
+  &__start {
+    font-size: 1.25rem;
+    padding: 0.9rem 2rem;
+    border: none;
+    border-radius: 999px;
+    cursor: pointer;
+
+    &:disabled {
+      opacity: 0.6;
+      cursor: wait;
+    }
+  }
+  &__label {
+    margin: 0;
+    opacity: 0.7;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+
+  &__code {
+    margin: 0;
+    font-size: clamp(4rem, 15vw, 9rem);
+    font-weight: 800;
+    letter-spacing: 0.15em;
+  }
+
+  &__url {
+    margin: 0;
+    opacity: 0.6;
+    font-size: 0.9rem;
+  }
+
+  &__error {
+    color: #ff6b6b;
+  }
+}
