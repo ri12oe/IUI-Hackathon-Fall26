@@ -1,0 +1,11 @@
+$bg: #0f1115;
+$text: #f2f2f2;
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: system-ui, sans-serif;
+  background: $bg;
+  color: $text;
+}
