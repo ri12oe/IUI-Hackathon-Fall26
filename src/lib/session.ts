@@ -25,6 +25,7 @@ export type Session = {
     id: string;
     room_code: string;
     current_slide: number;
+    ended_at: string | null;
 };
 
 export async function createSession(): Promise<Session> {
@@ -35,10 +36,26 @@ export async function createSession(): Promise<Session> {
         const { data, error } = await supabase
             .from("sessions")
             .insert({ room_code: generateRoomCode(), host_id: user.id})
-            .select("id, room_code, current_slide")
+            .select("id, room_code, current_slide, ended_at")
             .single();
         if (!error) return data;
         if (error.code !== "23505") throw error; // 23505 is unique violation, retry if code is taken
     }
     throw new Error("Couldn't create a unique room code. Try again.");
+}
+
+export async function joinSession(code: string) {
+    const user = await ensureSignedIn();
+
+    const { data, error } = await supabase
+     .from("sessions")
+     .select("id, room_code, current_slide, ended_at")
+     .eq("room_code", code.toUpperCase())
+     .maybeSingle();
+    
+    if (error) throw error;
+    if (!data) throw new Error("No session found with that code.");
+    if (data.ended_at) throw new Error("That session has ended.");
+
+    return { session: data as Session, deviceId: user.id};
 }
