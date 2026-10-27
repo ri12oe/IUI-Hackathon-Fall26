@@ -45,7 +45,7 @@ export default function Join() {
         <p className="join__label">You're in room</p>
         <p className="join__code">{session.room_code}</p>
         <p className="join__hint">The "I'm lost" button goes here next.</p>
-        <p className="join__debug"></p>
+        <p className="join__debug">device: {deviceId?.slice(0,8)}</p>
       </main>
     );
   }
