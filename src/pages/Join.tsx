@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router";
 import { joinSession, type Session } from "../lib/session";
+import StudentRoom from "../components/StudentRoom";
 import "./Join.scss";
 
 export default function Join() {
@@ -23,7 +24,7 @@ export default function Join() {
       const result = await joinSession(roomCode);
       setSession(result.session);
       setDeviceId(result.deviceId);
-      setParams({ code: roomCode }, { replace: true } );
+      setParams({ code: roomCode }, { replace: true });
     } catch (e) {
       setError((e as { message?: string }).message ?? "Couldn't join.");
     } finally {
@@ -39,24 +40,25 @@ export default function Join() {
     }
   }, []);
 
-  if (session) {
-    return (
-      <main className="join">
-        <p className="join__label">You're in room</p>
-        <p className="join__code">{session.room_code}</p>
-        <p className="join__hint">The "I'm lost" button goes here next.</p>
-        <p className="join__debug">device: {deviceId?.slice(0,8)}</p>
-      </main>
-    );
+  if (session && deviceId) {
+    return <StudentRoom session={session} deviceId={deviceId} />;
   }
   return (
     <main className="join">
       <h1>Join a session</h1>
-      <form className="join__form" onSubmit={(e) => { e.preventDefault(); join(code);}}>
+      <form
+        className="join__form"
+        onSubmit={(e) => {
+          e.preventDefault();
+          join(code);
+        }}
+      >
         <input
           className="join__input"
           value={code}
-          onChange={(e) => setCode(e.target.value.toUpperCase().replace(/[^A-Z]/g, ""))}
+          onChange={(e) =>
+            setCode(e.target.value.toUpperCase().replace(/[^A-Z]/g, ""))
+          }
           maxLength={4}
           placeholder="ABCD"
           autoCapitalize="characters"
@@ -69,7 +71,5 @@ export default function Join() {
         {error && <p className="join__error">{error}</p>}
       </form>
     </main>
-  )
+  );
 }
-
-
