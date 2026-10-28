@@ -1,0 +1,57 @@
+// Muddy UI 4.1 — mirrors the Figma variable set of the same name.
+// Change a color here and it updates everywhere.
+
+$colors: (
+  "bg-canvas":       #FAFAF7,
+  "bg-surface":      #FFFFFF,
+  "bg-subtle":       #EEF0E7,
+  "border-default":  #E3E4DB,
+
+  "text-primary":    #262626,
+  "text-secondary":  #55594F,
+  "text-muted":      #7D8176,
+  "text-on-accent":  #262626, // dark text on tangerine buttons
+  "text-on-strong":  #FFFFFF, // white text on red / carbon
+
+  "accent-heat":      #FF7F11, // tangerine
+  "accent-heat-soft": #FFEBDA,
+  "accent-strong":    #FF1B1C, // red
+
+  "status-live":     #5E8A50,
+  "status-warn":     #FF7F11,
+);
+
+// Confusion scale, clear (0) to muddy (5)
+$heat: (#E6EBD5, #F7DCAE, #FFB466, #FF7F11, #FF4E18, #E3141A);
+
+// Shape and type
+$radius-sm: 8px;   // inputs, small tiles
+$radius-md: 10px;  // buttons
+$radius-lg: 12px;  // cards, panels
+$radius-pill: 999px;
+
+$font-body: "IBM Plex Sans", system-ui, sans-serif;
+$font-display: "Bricolage Grotesque", "IBM Plex Sans", sans-serif;
+
+// Only floating things get a shadow (presenter bar, alert, student button, slide)
+$shadow-float: 0 8px 28px rgba(38, 38, 38, 0.12);
+
+:root {
+  @each $name, $value in $colors {
+    --#{$name}: #{$value};
+  }
+  @for $i from 0 through 5 {
+    --heat-#{$i}: #{nth($heat, $i + 1)};
+  }
+  --radius-sm: #{$radius-sm};
+  --radius-md: #{$radius-md};
+  --radius-lg: #{$radius-lg};
+  --font-body: #{$font-body};
+  --font-display: #{$font-display};
+  --shadow-float: #{$shadow-float};
+}
+
+// Utility classes for heat cells: <div className="heat-3" />
+@for $i from 0 through 5 {
+  .heat-#{$i} { background: nth($heat, $i + 1); }
+}

@@ -1,0 +1,19 @@
+.logo {
+  display: inline-flex;
+  align-items: baseline;
+  font-family: var(--font-display);
+  font-weight: 800;
+  line-height: 1;
+  color: var(--text-primary);
+  letter-spacing: -0.03em;
+  white-space: nowrap;
+  user-select: none;
+
+  &__m {
+    // Height ≈ the x-height of Bricolage, so the m matches "uddy"
+    height: 0.56em;
+    width: calc(0.56em * 56 / 48.5);
+    margin-right: 0.02em;
+    overflow: visible;
+  }
+}

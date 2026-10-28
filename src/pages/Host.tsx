@@ -7,6 +7,7 @@ import { useLiveConfusion } from "../hooks/useLiveConfusion";
 import SlideBreakdown from "../components/SlideBreakdown";
 import ConfusionAlertBanner from "../components/ConfusionAlertBanner";
 import { useThresholdAlert } from "../hooks/useThresholdAlert";
+
 import {
   createSession,
   setCurrentSlide,
@@ -141,7 +142,6 @@ export default function Host() {
           </label>
         )}
       </section>
-
       <aside className="host__side">
         <div className="host__join">
           <div className="host__qr">
