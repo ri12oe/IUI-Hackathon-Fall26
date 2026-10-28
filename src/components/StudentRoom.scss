@@ -1,77 +1,112 @@
 .room {
-  min-height: 100vh;
+  min-height: 100dvh;
+  max-width: 520px;
+  margin: 0 auto;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
   gap: 1rem;
-  padding: 1rem 1rem 2rem;
-  text-align: center;
+  padding: 1rem 1.25rem calc(1.25rem + env(safe-area-inset-bottom));
 
-  &__header {
-    position: absolute;
-    top: 1rem;
-    left: 1rem;
-    right: 1rem;
+  &__header { display: flex; align-items: center; justify-content: space-between; }
+
+  &__chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.3rem 0.7rem;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    background: var(--bg-surface);
+    border: 1px solid var(--border-default);
+    border-radius: 999px;
+
+    i { width: 0.45rem; height: 0.45rem; border-radius: 50%; background: var(--status-live); }
+  }
+  &__slide-num { font-weight: 600; font-size: 0.9rem; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+
+  &__slide canvas { border: 1px solid var(--border-default); }
+
+  &__middle {
+    flex: 1;
     display: flex;
-    justify-content: space-between;
-    opacity: 0.7;
-    font-size: 0.9rem;
+    flex-direction: column;
+    justify-content: flex-end;
+    gap: 0.6rem;
   }
 
-  &__slide {
-    width: 100%;
-    max-width: 600px;
-    margin-top: 2rem;
+  &__hint { margin: 0; text-align: center; color: var(--text-muted); }
+
+  &__waiting {
+    margin: auto 0;
+    display: grid;
+    gap: 0.3rem;
+    text-align: center;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    strong { color: var(--text-primary); font-size: 1.15rem; }
   }
 
-  &--with-slides &__lost {
-    width: min(50vw, 220px);
-    font-size: 1.5rem;
+  &__sent {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.85rem 1rem;
+    background: var(--accent-heat-soft);
+    border-radius: var(--radius-lg);
+    animation: sent-in 0.25s ease-out;
+
+    svg { flex: none; width: 1.4rem; height: 1.4rem; fill: none; stroke: var(--accent-strong); stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+    span { display: grid; color: var(--text-secondary); font-size: 0.9rem; }
+    strong { color: var(--text-primary); font-size: 1rem; }
   }
+
+  &__error { margin: 0; text-align: center; color: var(--accent-strong); font-size: 0.9rem; }
+
+  &__bottom { display: grid; gap: 0.75rem; }
+  &__gotit { width: 100%; padding-block: 0.85rem; }
 
   &__lost {
-    align-self: center;
-    width: min(75vw, 320px);
-    aspect-ratio: 1;
-    border-radius: 50%;
+    width: 100%;
+    min-height: 8.5rem;
+    display: grid;
+    place-content: center;
+    justify-items: center;
+    gap: 0.45rem;
     border: none;
-    font-size: 2rem;
-    font-weight: 800;
-    color: #fff;
-    background: #3a3f4b;
+    border-radius: 28px;
+    background: var(--text-primary);
+    color: var(--text-on-strong);
+    box-shadow: 0 10px 28px rgba(38, 38, 38, 0.18);
     cursor: pointer;
-    transition:
-      transform 0.1s,
-      background 0.2s;
+    transition: transform 0.1s, background 0.2s, box-shadow 0.2s;
     -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation; // no double-tap zoom on fast taps
 
-    &:active {
-      transform: scale(0.96);
-    }
+    small { font-size: 0.85rem; font-weight: 500; opacity: 0.75; }
+    &:active:not(:disabled) { transform: scale(0.98); }
+    &:disabled { background: var(--bg-subtle); color: var(--text-muted); box-shadow: none; cursor: default; }
+  }
+  &__lost-label { font-family: var(--font-display); font-weight: 800; font-size: 2rem; letter-spacing: -0.02em; }
 
-    &.is-active {
-      background: #e8590c;
-      box-shadow: 0 0 0 12px rgba(232, 89, 12, 0.25);
-    }
+  &--lost &__lost {
+    background: var(--accent-strong);
+    box-shadow: 0 0 0 8px var(--accent-heat-soft), 0 12px 30px rgba(255, 27, 28, 0.28);
+    small { opacity: 0.95; }
   }
 
-  &__status {
-    margin: 0;
-    opacity: 0.75;
-    max-width: 28ch;
-  }
-
-  &__gotit {
-    font-size: 1.1rem;
-    padding: 0.75rem 2rem;
+  &__timer {
+    width: 10rem;
+    height: 6px;
     border-radius: 999px;
-    border: 2px solid #fff;
-    background: transparent;
-    color: #fff;
-  }
-
-  &__error {
-    color: #ff6b6b;
+    background: var(--accent-heat);
+    overflow: hidden;
+    span { display: block; height: 100%; background: var(--text-on-strong); border-radius: 999px; transition: width 0.25s linear; }
   }
 }
+
+@keyframes sent-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) { .room__sent { animation: none; } }
