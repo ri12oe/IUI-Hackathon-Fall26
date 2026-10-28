@@ -21,6 +21,9 @@ export async function ensureSignedIn() {
   return signIn.user;
 }
 
+export type SessionStatus = "lobby" | "live" | "ended";
+
+
 export type Session = {
   id: string;
   room_code: string;
@@ -28,10 +31,16 @@ export type Session = {
   slide_count: number | null;
   slides_url: string | null;
   ended_at: string | null;
+  course: string | null;
+  title: string | null;
+  alert_threshold: number;
+  status: SessionStatus;
+  presenting_started_at: string | null;
+  share_with_students: boolean;
 };
 
 export const SESSION_COLUMNS =
-  "id, room_code, current_slide, slide_count, slides_url, ended_at";
+  "id, room_code, current_slide, slide_count, slides_url, ended_at, course, title, alert_threshold, status, presenting_started_at, share_with_students";
 
 export async function createSession(): Promise<Session> {
   const user = await ensureSignedIn();
