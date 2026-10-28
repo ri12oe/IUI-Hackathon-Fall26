@@ -23,7 +23,6 @@ export async function ensureSignedIn() {
 
 export type SessionStatus = "lobby" | "live" | "ended";
 
-
 export type Session = {
   id: string;
   room_code: string;
@@ -58,22 +57,6 @@ export async function createSession(): Promise<Session> {
   throw new Error("Couldn't create a unique room code. Try again.");
 }
 
-export async function joinSession(code: string) {
-  const user = await ensureSignedIn();
-
-  const { data, error } = await supabase
-    .from("sessions")
-    .select(SESSION_COLUMNS)
-    .eq("room_code", code.toUpperCase())
-    .maybeSingle();
-
-  if (error) throw error;
-  if (!data) throw new Error("No session found with that code.");
-  if (data.ended_at) throw new Error("That session has ended.");
-
-  return { session: data as Session, deviceId: user.id };
-}
-
 export async function setCurrentSlide(sessionId: string, slide: number) {
   const { data, error } = await supabase
     .from("sessions")
@@ -83,4 +66,38 @@ export async function setCurrentSlide(sessionId: string, slide: number) {
   if (error) throw error;
   if (!data.length)
     throw new Error("Not allowed to change slides for this session.");
+}
+
+export async function getSessionByCode(code: string): Promise<Session | null> {
+  await ensureSignedIn();
+  const { data, error } = await supabase
+    .from("sessions")
+    .select(SESSION_COLUMNS)
+    .eq("room_code", code.toUpperCase())
+    .maybeSingle();
+  if (error) throw error;
+  return data as Session | null;
+}
+
+export async function updateSession(
+  sessionId: string,
+  patch: Partial<Omit<Session, "id" | "room_code">>,
+): Promise<Session> {
+  const { data, error } = await supabase
+    .from("sessions")
+    .update(patch)
+    .eq("id", sessionId)
+    .select(SESSION_COLUMNS)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) throw new Error("Not allowed to change this session.");
+  return data as Session;
+}
+
+export async function joinSession(code: string) {
+  const user = await ensureSignedIn();
+  const session = await getSessionByCode(code);
+  if (!session) throw new Error("No session found with that code.");
+  if (session.status === "ended") throw new Error("That session has ended.");
+  return { session, deviceId: user.id };
 }
