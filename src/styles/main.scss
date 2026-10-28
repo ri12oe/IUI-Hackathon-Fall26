@@ -26,4 +26,9 @@ h1, h2, .display {
   &:disabled { opacity: 0.55; cursor: default; }
   &--primary { border: none; background: var(--accent-heat); color: var(--text-on-accent); }
   &--secondary { border: 1.5px solid var(--border-default); background: var(--bg-surface); color: var(--text-primary); }
+  &--danger {
+    border: none;
+    background: var(--accent-strong);
+    color: var(--text-on-strong);
+  }
 }

@@ -87,6 +87,20 @@
     text-align: center;
     color: var(--accent-strong);
   }
+  &__end {
+    font: inherit;
+    font-weight: 600;
+    color: var(--text-secondary);
+    background: none;
+    border: none;
+    padding: 0.4rem 0.6rem;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    &:hover {
+      color: var(--accent-strong);
+      background: var(--accent-heat-soft);
+    }
+  }
 }
 
 .timer {
@@ -143,5 +157,30 @@
     font-size: clamp(3.5rem, 9vw, 6rem);
     letter-spacing: 0.08em;
     line-height: 1;
+  }
+}
+
+.confirm {
+  width: min(100%, 440px);
+  padding: 1.75rem;
+  background: var(--bg-surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-float);
+
+  h2 {
+    margin: 0 0 0.5rem;
+    font-size: 1.5rem;
+  }
+  p {
+    margin: 0 0 1.5rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+  }
+
+  &__actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.6rem;
+    flex-wrap: wrap;
   }
 }

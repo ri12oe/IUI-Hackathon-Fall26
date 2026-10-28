@@ -1,4 +1,10 @@
-import { useEffect, useState, type ChangeEvent, type Dispatch, type SetStateAction } from "react";
+import {
+  useEffect,
+  useState,
+  type ChangeEvent,
+  type Dispatch,
+  type SetStateAction,
+} from "react";
 import { QRCodeSVG } from "qrcode.react";
 import Logo from "../../components/Logo";
 import SlideViewer from "../../components/SlideViewer";
@@ -9,11 +15,18 @@ import ConfusionAlertBanner from "../../components/ConfusionAlertBanner";
 import { useLiveConfusion } from "../../hooks/useLiveConfusion";
 import { useThresholdAlert } from "../../hooks/useThresholdAlert";
 import { useConfusionHistory } from "../../hooks/useConfusionHistory";
-import { setCurrentSlide, type Session } from "../../lib/session";
+import {
+  setCurrentSlide,
+  updateSession,
+  type Session,
+} from "../../lib/session";
 import { uploadSlides } from "../../lib/slides";
 import "./Presenting.scss";
 
-type Props = { session: Session; setSession: Dispatch<SetStateAction<Session | null>> };
+type Props = {
+  session: Session;
+  setSession: Dispatch<SetStateAction<Session | null>>;
+};
 
 export default function Presenting({ session, setSession }: Props) {
   const [error, setError] = useState<string | null>(null);
@@ -21,14 +34,22 @@ export default function Presenting({ session, setSession }: Props) {
   const [panelOpen, setPanelOpen] = useState(false);
   const [alertsOn, setAlertsOn] = useState(true);
   const [showCode, setShowCode] = useState(false);
+  const [confirmEnd, setConfirmEnd] = useState(false);
+  const [ending, setEnding] = useState(false);
 
   const { stats, bySlide, connected } = useLiveConfusion(session.id);
   const history = useConfusionHistory(stats.percent);
-  const { alert, dismiss } = useThresholdAlert(stats, session.current_slide, session.alert_threshold);
+  const { alert, dismiss } = useThresholdAlert(
+    stats,
+    session.current_slide,
+    session.alert_threshold,
+  );
   const visibleAlert = alertsOn ? alert : null;
 
   useEffect(() => {
-    document.title = visibleAlert ? `⚠ ${visibleAlert.percent}% lost · Muddy` : "Muddy";
+    document.title = visibleAlert
+      ? `⚠ ${visibleAlert.percent}% lost · Muddy`
+      : "Muddy";
   }, [visibleAlert]);
 
   async function goTo(slide: number) {
@@ -44,11 +65,34 @@ export default function Presenting({ session, setSession }: Props) {
       setError((e as { message?: string }).message ?? "Couldn't change slide.");
     }
   }
+  async function endSession() {
+    setEnding(true);
+    setError(null);
+    try {
+      // HostSession sees status = "ended" and redirects to the report
+      setSession(
+        await updateSession(session.id, {
+          status: "ended",
+          ended_at: new Date().toISOString(),
+        }),
+      );
+    } catch (e) {
+      setError(
+        (e as { message?: string }).message ?? "Couldn't end the session.",
+      );
+      setEnding(false);
+      setConfirmEnd(false);
+    }
+  }
 
   // Keyboard: arrows / clicker change slides, Esc closes the code overlay
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") return setShowCode(false);
+      if (e.key === "Escape") {
+        setShowCode(false);
+        setConfirmEnd(false);
+        return;
+      }
       if (e.key === "ArrowRight" || e.key === "PageDown") {
         e.preventDefault();
         goTo(session.current_slide + 1);
@@ -89,7 +133,9 @@ export default function Presenting({ session, setSession }: Props) {
         <span className="present__room">Room {session.room_code}</span>
         <span className="present__spacer" />
         <SessionTimer startedAt={session.presenting_started_at} />
-        {/* End session button comes in the next task */}
+        <button className="present__end" onClick={() => setConfirmEnd(true)}>
+          End session
+        </button>
       </header>
 
       <div className="present__body">
@@ -105,12 +151,27 @@ export default function Presenting({ session, setSession }: Props) {
 
           <div className="present__slide">
             {session.slides_url ? (
-              <SlideViewer url={session.slides_url} page={session.current_slide} fit="contain" />
+              <SlideViewer
+                url={session.slides_url}
+                page={session.current_slide}
+                fit="contain"
+              />
             ) : (
               <label className="present__upload">
-                <input type="file" accept="application/pdf" onChange={handleFile} disabled={uploading} hidden />
-                <strong>{uploading ? "Uploading…" : "Upload slides (PDF)"}</strong>
-                <small>Or keep presenting from your own slides. Prev / Next still tracks the slide number.</small>
+                <input
+                  type="file"
+                  accept="application/pdf"
+                  onChange={handleFile}
+                  disabled={uploading}
+                  hidden
+                />
+                <strong>
+                  {uploading ? "Uploading…" : "Upload slides (PDF)"}
+                </strong>
+                <small>
+                  Or keep presenting from your own slides. Prev / Next still
+                  tracks the slide number.
+                </small>
               </label>
             )}
           </div>
@@ -144,16 +205,65 @@ export default function Presenting({ session, setSession }: Props) {
         onTogglePanel={() => setPanelOpen((v) => !v)}
       />
 
-      {error && <p className="present__error" role="alert">{error}</p>}
+      {error && (
+        <p className="present__error" role="alert">
+          {error}
+        </p>
+      )}
 
       {showCode && (
-        <div className="codeview" role="dialog" aria-modal="true" aria-label="Join code" onClick={() => setShowCode(false)}>
+        <div
+          className="codeview"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Join code"
+          onClick={() => setShowCode(false)}
+        >
           <div className="codeview__card" onClick={(e) => e.stopPropagation()}>
             <QRCodeSVG value={joinUrl} size={300} marginSize={1} />
             <div>
               <p className="codeview__url">{new URL(baseUrl).host}/join</p>
               <p className="codeview__code">{session.room_code}</p>
-              <button className="btn btn--secondary" onClick={() => setShowCode(false)}>Close</button>
+              <button
+                className="btn btn--secondary"
+                onClick={() => setShowCode(false)}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {confirmEnd && (
+        <div
+          className="codeview"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="end-title"
+          onClick={() => !ending && setConfirmEnd(false)}
+        >
+          <div className="confirm" onClick={(e) => e.stopPropagation()}>
+            <h2 id="end-title">End this session?</h2>
+            <p>
+              Students' phones will show the end screen, and no more taps will
+              be recorded. You'll go straight to the report.
+            </p>
+            <div className="confirm__actions">
+              <button
+                className="btn btn--secondary"
+                onClick={() => setConfirmEnd(false)}
+                disabled={ending}
+                autoFocus
+              >
+                Keep presenting
+              </button>
+              <button
+                className="btn btn--danger"
+                onClick={endSession}
+                disabled={ending}
+              >
+                {ending ? "Ending…" : "End session"}
+              </button>
             </div>
           </div>
         </div>
