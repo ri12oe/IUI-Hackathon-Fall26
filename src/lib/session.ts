@@ -101,3 +101,37 @@ export async function joinSession(code: string) {
   if (session.status === "ended") throw new Error("That session has ended.");
   return { session, deviceId: user.id };
 }
+
+// Loads a session for the host screens and says whether this browser is its host
+export async function getHostSession(
+  code: string,
+): Promise<{ session: Session | null; isHost: boolean }> {
+  const user = await ensureSignedIn();
+  const { data, error } = await supabase
+    .from("sessions")
+    .select(`${SESSION_COLUMNS}, host_id`)
+    .eq("room_code", code.toUpperCase())
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!data) return { session: null, isHost: false };
+
+  const { host_id, ...session } = data as Session & { host_id: string };
+  return { session: session as Session, isHost: host_id === user.id };
+}
+
+// The host's most recent unfinished session, if any (used to offer "Resume")
+export async function getMyActiveSession(): Promise<Session | null> {
+  const user = await ensureSignedIn();
+  const { data, error } = await supabase
+    .from("sessions")
+    .select(SESSION_COLUMNS)
+    .eq("host_id", user.id)
+    .in("status", ["lobby", "live"])
+    .order("started_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data as Session | null;
+}
