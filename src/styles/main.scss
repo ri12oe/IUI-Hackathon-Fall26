@@ -15,3 +15,15 @@ h1, h2, .display {
   font-weight: 800;
   letter-spacing: -0.02em;
 }
+
+.btn {
+  font: inherit;
+  font-weight: 600;
+  padding: 0.7rem 1.15rem;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+
+  &:disabled { opacity: 0.55; cursor: default; }
+  &--primary { border: none; background: var(--accent-heat); color: var(--text-on-accent); }
+  &--secondary { border: 1.5px solid var(--border-default); background: var(--bg-surface); color: var(--text-primary); }
+}

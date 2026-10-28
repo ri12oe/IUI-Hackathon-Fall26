@@ -38,21 +38,27 @@ export type Session = {
   share_with_students: boolean;
 };
 
+export type NewSessionInput = {
+  course?: string | null;
+  title?: string | null;
+  alert_threshold?: number;
+};
+
 export const SESSION_COLUMNS =
   "id, room_code, current_slide, slide_count, slides_url, ended_at, course, title, alert_threshold, status, presenting_started_at, share_with_students";
 
-export async function createSession(): Promise<Session> {
+export async function createSession(input: NewSessionInput = {}): Promise<Session> {
   const user = await ensureSignedIn();
 
-  // Retry if the random code is already taken
   for (let attempt = 0; attempt < 5; attempt++) {
     const { data, error } = await supabase
       .from("sessions")
-      .insert({ room_code: generateRoomCode(), host_id: user.id })
+      .insert({ room_code: generateRoomCode(), host_id: user.id, ...input })
       .select(SESSION_COLUMNS)
       .single();
-    if (!error) return data;
-    if (error.code !== "23505") throw error; // 23505 is unique violation, retry if code is taken
+
+    if (!error) return data as Session;
+    if (error.code !== "23505") throw error;
   }
   throw new Error("Couldn't create a unique room code. Try again.");
 }
@@ -135,3 +141,7 @@ export async function getMyActiveSession(): Promise<Session | null> {
   if (error) throw error;
   return data as Session | null;
 }
+
+
+
+

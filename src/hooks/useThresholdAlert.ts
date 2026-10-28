@@ -1,41 +1,41 @@
-import { useEffect, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import type { ConfusionStats } from "../lib/confusion";
 
-export const ALERT_ON_PERCENT = 35;  // show the alert at or above this
-export const ALERT_OFF_PERCENT = 25; // clear it below this
-export const ALERT_MIN_LOST = 2;     // ignore tiny rooms (1 of 1 = 100%)
+export const ALERT_MIN_LOST = 2; // ignore tiny rooms (1 of 1 = 100%)
 
 export type ConfusionAlert = ConfusionStats & { slide: number };
 
-export function useThresholdAlert(stats: ConfusionStats, currentSlide: number) {
-  const [alert, setAlert] = useState<ConfusionAlert | null>(null);
-  const dismissedRef = useRef(false);
+export function useThresholdAlert(
+  stats: ConfusionStats,
+  currentSlide: number,
+  onPercent = 35 // the session's alert_threshold (25, 35 or 50)
+) {
+  // Clear the alert 10 points below the trigger, so it doesn't flicker on and off
+  const offPercent = Math.max(5, onPercent - 10);
 
-  useEffect(() => {
-    const id = setTimeout(() => {
-      // Confusion has dropped: clear the alert and allow it to fire again later
-      if (stats.percent < ALERT_OFF_PERCENT) {
-        dismissedRef.current = false;
-        setAlert(null);
-        return;
-      }
+  const [alertSlide, setAlertSlide] = useState<number | null>(null);
+  const [dismissed, setDismissed] = useState(false);
 
-      const high = stats.percent >= ALERT_ON_PERCENT && stats.lost >= ALERT_MIN_LOST;
+  const high = stats.percent >= onPercent && stats.lost >= ALERT_MIN_LOST;
 
-      setAlert((prev) => {
-        if (prev) return { ...prev, ...stats };        // already showing: keep the numbers live
-        if (high && !dismissedRef.current) {
-          return { ...stats, slide: currentSlide };    // new alert, tied to the slide it started on
-        }
-        return null;
-      });
-    }, 0);
-    return () => clearTimeout(id);
-  }, [stats, currentSlide]);
+  // Derived during render (no effect): adjust state only when the transition actually happens
+  if (stats.percent < offPercent) {
+    // Confusion has dropped: clear the alert and allow it to fire again later
+    if (alertSlide !== null) setAlertSlide(null);
+    if (dismissed) setDismissed(false);
+  } else if (alertSlide === null && high && !dismissed) {
+    setAlertSlide(currentSlide); // new alert, tied to the slide it started on
+  }
+
+  // Already showing: the numbers stay live because they come straight from stats
+  const alert = useMemo<ConfusionAlert | null>(
+    () => (alertSlide === null ? null : { ...stats, slide: alertSlide }),
+    [alertSlide, stats]
+  );
 
   function dismiss() {
-    dismissedRef.current = true;
-    setAlert(null);
+    setDismissed(true);
+    setAlertSlide(null);
   }
 
   return { alert, dismiss };

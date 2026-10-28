@@ -15,7 +15,7 @@ export default function Presenting({ session, setSession }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const { stats, bySlide, connected } = useLiveConfusion(session.id);
-  const { alert, dismiss } = useThresholdAlert(stats, session.current_slide);
+  const { alert, dismiss } = useThresholdAlert(stats, session.current_slide, session.alert_threshold);
 
   useEffect(() => {
     document.title = alert ? `⚠ ${alert.percent}% lost · Muddy` : "Muddy";
