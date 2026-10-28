@@ -10,26 +10,22 @@ type Props = {
 
 export default function ConfusionAlertBanner({ alert, currentSlide, onGoTo, onDismiss }: Props) {
   return (
-    <div className="alert" role="alert">
-      <div className="alert__text">
-        <strong>
-          {alert.percent}% of students are lost on slide {alert.slide}
-        </strong>
-        <span>
-          {alert.lost} of {alert.active} students
-        </span>
-      </div>
-
-      <div className="alert__actions">
-        {currentSlide !== alert.slide && (
-          <button className="alert__primary" onClick={() => onGoTo(alert.slide)}>
-            Back to slide {alert.slide}
-          </button>
-        )}
-        <button className="alert__dismiss" onClick={onDismiss} aria-label="Dismiss alert">
-          Dismiss
+    <div className="toast" role="alert">
+      <span className="toast__icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24">
+          <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+        </svg>
+      </span>
+      <span className="toast__text">
+        <strong>{alert.percent}% lost on slide {alert.slide}</strong>
+        <small>{alert.lost} of {alert.active} students</small>
+      </span>
+      {currentSlide !== alert.slide && (
+        <button className="btn btn--secondary" onClick={() => onGoTo(alert.slide)}>
+          Back to slide {alert.slide}
         </button>
-      </div>
+      )}
+      <button className="toast__dismiss" onClick={onDismiss}>Dismiss</button>
     </div>
   );
 }

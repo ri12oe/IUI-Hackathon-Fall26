@@ -3,27 +3,34 @@ import type { RenderTask } from "pdfjs-dist";
 import { loadPdf } from "../lib/pdf";
 import "./SlideViewer.scss";
 
-type Props = { url: string; page: number };
+type Props = {
+  url: string;
+  page: number;
+  // "width": fill the width, height follows (phones)
+  // "contain": fit inside the box's width AND height (presenting screen)
+  fit?: "width" | "contain";
+};
 
-export default function SlideViewer({ url, page }: Props) {
+export default function SlideViewer({ url, page, fit = "width" }: Props) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [width, setWidth] = useState(0);
+  const [box, setBox] = useState({ w: 0, h: 0 });
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
 
-  // Track the container's width so the slide fits any screen
+  // Track the container's size
   useEffect(() => {
     const el = wrapRef.current;
     if (!el) return;
-    const observer = new ResizeObserver(([entry]) =>
-      setWidth(Math.floor(entry.contentRect.width))
-    );
+    const observer = new ResizeObserver(([entry]) => {
+      const { width, height } = entry.contentRect;
+      setBox({ w: Math.floor(width), h: Math.floor(height) });
+    });
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
 
   useEffect(() => {
-    if (!width) return;
+    if (!box.w) return;
     let task: RenderTask | null = null;
     let cancelled = false;
 
@@ -35,7 +42,14 @@ export default function SlideViewer({ url, page }: Props) {
         const ctx = canvas?.getContext("2d");
         if (cancelled || !canvas || !ctx) return;
 
-        const viewport = pdfPage.getViewport({ scale: width / pdfPage.getViewport({ scale: 1 }).width });
+        const base = pdfPage.getViewport({ scale: 1 });
+        const byWidth = box.w / base.width;
+        const scale =
+          fit === "contain" && box.h > 0
+            ? Math.min(byWidth, box.h / base.height) // fit both directions
+            : byWidth;
+
+        const viewport = pdfPage.getViewport({ scale });
         const dpr = window.devicePixelRatio || 1;
 
         canvas.width = Math.floor(viewport.width * dpr);
@@ -61,10 +75,13 @@ export default function SlideViewer({ url, page }: Props) {
       cancelled = true;
       task?.cancel();
     };
-  }, [url, page, width]);
+  }, [url, page, box.w, box.h, fit]);
 
   return (
-    <div ref={wrapRef} className={`slide ${status === "ready" ? "is-ready" : ""}`}>
+    <div
+      ref={wrapRef}
+      className={`slide slide--${fit} ${status === "ready" ? "is-ready" : ""}`}
+    >
       <canvas ref={canvasRef} />
       {status !== "ready" && (
         <p className="slide__status">

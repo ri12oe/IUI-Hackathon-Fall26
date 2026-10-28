@@ -1,0 +1,52 @@
+.pbar {
+  justify-self: center;
+  display: flex;
+  align-items: center;
+  gap: 1.1rem;
+  padding: 0.6rem 0.75rem;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-float);
+  max-width: 100%;
+  flex-wrap: wrap;
+  justify-content: center;
+
+  &__nav, &__actions, &__gauge { display: flex; align-items: center; gap: 0.6rem; }
+
+  &__round {
+    display: grid;
+    place-items: center;
+    width: 2.6rem;
+    height: 2.6rem;
+    border-radius: 50%;
+    border: 1.5px solid var(--border-default);
+    background: var(--bg-surface);
+    cursor: pointer;
+
+    svg { width: 1.1rem; height: 1.1rem; fill: none; stroke: var(--text-primary); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+    &:disabled { opacity: 0.4; cursor: default; }
+  }
+
+  &__count { min-width: 4.5ch; text-align: center; font-weight: 600; font-variant-numeric: tabular-nums; }
+  &__divider { width: 1px; height: 2rem; background: var(--border-default); }
+  &__label { font-size: 0.8rem; font-weight: 500; color: var(--text-secondary); }
+
+  &__track {
+    width: clamp(100px, 14vw, 200px);
+    height: 0.6rem;
+    border-radius: 999px;
+    background: var(--heat-0);
+    overflow: hidden;
+  }
+  &__fill { display: block; height: 100%; border-radius: 999px; transition: width 0.4s ease, background 0.3s; }
+
+  &__pct {
+    font-family: var(--font-display);
+    font-size: 1.4rem;
+    min-width: 3.2ch;
+    font-variant-numeric: tabular-nums;
+    &.is-over { color: var(--accent-strong); }
+  }
+  &__of { font-size: 0.85rem; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+}
