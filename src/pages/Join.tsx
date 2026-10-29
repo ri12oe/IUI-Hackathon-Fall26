@@ -5,6 +5,7 @@ import { useSessionUpdates } from "../hooks/useSessionUpdates";
 import StudentRoom from "../components/StudentRoom";
 import Welcome from "../components/Welcome";
 import SessionEnded from "../components/SessionEnded";
+import Logo from "../components/Logo";
 import "./Join.scss";
 
 const WELCOMED_KEY = "muddy:welcomed";
@@ -25,6 +26,8 @@ export default function Join() {
   const [error, setError] = useState<string | null>(null);
   const [showWelcome, setShowWelcome] = useState(() => !hasSeenWelcome());
   const autoJoinTried = useRef(false);
+  const [focused, setFocused] = useState(false);
+  const [showScanHelp, setShowScanHelp] = useState(false);
 
   useSessionUpdates(session?.id, setSession);
 
@@ -92,33 +95,112 @@ export default function Join() {
   }
 
   // Not joined yet: the join form (uses code, error and loading)
+  // Arriving from the QR code: show a short "Joining" screen instead of the form
+  if (loading && params.get("code")) {
+    return (
+      <main className="join join--loading">
+        <Logo size={22} />
+        <p>Joining {code}…</p>
+      </main>
+    );
+  }
+
+  function onCodeChange(value: string) {
+    const next = value
+      .toUpperCase()
+      .replace(/[^A-Z]/g, "")
+      .slice(0, 4);
+    setCode(next);
+    setError(null);
+    if (next.length === 4 && !loading) join(next); // auto-join on the 4th letter
+  }
+
   return (
     <main className="join">
-      <h1>Join a session</h1>
-      <form
-        className="join__form"
-        onSubmit={(e) => {
-          e.preventDefault();
-          join(code);
-        }}
-      >
-        <input
-          className="join__input"
-          value={code}
-          onChange={(e) =>
-            setCode(e.target.value.toUpperCase().replace(/[^A-Z]/g, ""))
-          }
-          maxLength={4}
-          placeholder="ABCD"
-          autoCapitalize="characters"
-          autoComplete="off"
-          aria-label="Room code"
-        />
-        <button className="join__button" disabled={loading}>
-          {loading ? "Joining…" : "Join"}
+      <header className="join__top">
+        <Logo size={22} />
+      </header>
+
+      <section className="join__body">
+        <h1>Join class</h1>
+        <p className="join__lede">It's the 4 letters on the projector.</p>
+
+        <form
+          className="join__form"
+          onSubmit={(e) => {
+            e.preventDefault();
+            join(code);
+          }}
+        >
+          <label className="join__code">
+            <span className="visually-hidden">Room code</span>
+            <input
+              value={code}
+              onChange={(e) => onCodeChange(e.target.value)}
+              onFocus={() => setFocused(true)}
+              onBlur={() => setFocused(false)}
+              maxLength={4}
+              inputMode="text"
+              autoCapitalize="characters"
+              autoComplete="off"
+              autoCorrect="off"
+              spellCheck={false}
+              enterKeyHint="go"
+              autoFocus
+            />
+            <span className="join__boxes" aria-hidden="true">
+              {[0, 1, 2, 3].map((i) => (
+                <span
+                  key={i}
+                  className={[
+                    "join__box",
+                    code[i] ? "is-filled" : "",
+                    focused && i === Math.min(code.length, 3)
+                      ? "is-active"
+                      : "",
+                  ].join(" ")}
+                >
+                  {code[i] ?? ""}
+                </span>
+              ))}
+            </span>
+          </label>
+
+          {error && (
+            <p className="join__error" role="alert">
+              {error}
+            </p>
+          )}
+
+          <button
+            className="btn btn--primary join__submit"
+            disabled={loading || code.length < 4}
+          >
+            {loading ? "Joining…" : "Join"}
+          </button>
+        </form>
+
+        <div className="join__or">
+          <span>or</span>
+        </div>
+
+        <button
+          type="button"
+          className="btn btn--secondary join__scan"
+          onClick={() => setShowScanHelp((v) => !v)}
+          aria-expanded={showScanHelp}
+        >
+          Scan QR code
         </button>
-      </form>
-      {error && <p className="join__error">{error}</p>}
+        {showScanHelp && (
+          <p className="join__scanhelp">
+            Open your phone's camera app and point it at the QR code on the
+            projector. It opens this page with the code already filled in.
+          </p>
+        )}
+      </section>
+
+      <footer className="join__privacy">We never ask for your name.</footer>
     </main>
   );
 }
