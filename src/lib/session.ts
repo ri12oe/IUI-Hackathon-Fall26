@@ -104,7 +104,6 @@ export async function joinSession(code: string) {
   const user = await ensureSignedIn();
   const session = await getSessionByCode(code);
   if (!session) throw new Error("No session found with that code.");
-  if (session.status === "ended") throw new Error("That session has ended.");
   return { session, deviceId: user.id };
 }
 
@@ -129,11 +128,14 @@ export async function getHostSession(
 // The host's most recent unfinished session, if any (used to offer "Resume")
 export async function getMyActiveSession(): Promise<Session | null> {
   const user = await ensureSignedIn();
+  const since = new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString();
+
   const { data, error } = await supabase
     .from("sessions")
     .select(SESSION_COLUMNS)
     .eq("host_id", user.id)
     .in("status", ["lobby", "live"])
+    .gte("started_at", since)
     .order("started_at", { ascending: false })
     .limit(1)
     .maybeSingle();

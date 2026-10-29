@@ -1,7 +1,12 @@
 import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import { useNavigate } from "react-router";
 import Logo from "../../components/Logo";
-import { createSession, getMyActiveSession, type Session } from "../../lib/session";
+import {
+  createSession,
+  getMyActiveSession,
+  updateSession,
+  type Session,
+} from "../../lib/session";
 import { uploadSlides } from "../../lib/slides";
 import { getPageCount } from "../../lib/pdf";
 import "./HostSetup.scss";
@@ -53,7 +58,9 @@ export default function HostSetup() {
   const [active, setActive] = useState<Session | null>(null);
 
   useEffect(() => {
-    getMyActiveSession().then(setActive).catch(() => {});
+    getMyActiveSession()
+      .then(setActive)
+      .catch(() => {});
   }, []);
 
   async function handleFile(e: ChangeEvent<HTMLInputElement>) {
@@ -90,7 +97,9 @@ export default function HostSetup() {
       });
       save({ course: course.trim(), alertThreshold: threshold });
     } catch (err) {
-      setError((err as { message?: string }).message ?? "Couldn't create the session.");
+      setError(
+        (err as { message?: string }).message ?? "Couldn't create the session.",
+      );
       setStep("idle");
       return;
     }
@@ -125,27 +134,59 @@ export default function HostSetup() {
             Session <strong>{active.room_code}</strong>
             {active.title ? `, ${active.title}` : ""} is still open.
           </span>
-          <button type="button" onClick={() => navigate(`/host/${active.room_code}`)}>
+          <button
+            type="button"
+            onClick={() => navigate(`/host/${active.room_code}`)}
+          >
             Resume
+          </button>
+          <button
+            type="button"
+            className="setup__discard"
+            onClick={async () => {
+              try {
+                await updateSession(active.id, {
+                  status: "ended",
+                  ended_at: new Date().toISOString(),
+                });
+              } finally {
+                setActive(null);
+              }
+            }}
+          >
+            End it
           </button>
         </div>
       )}
 
       <form className="setup__card" onSubmit={onSubmit}>
-        {saved && <p className="setup__note">Settings copied from your last session</p>}
+        {saved && (
+          <p className="setup__note">Settings copied from your last session</p>
+        )}
         <h1>New session</h1>
         <p className="setup__lede">
-          Students join from their phones with a room code. No app to install, no sign-ups.
+          Students join from their phones with a room code. No app to install,
+          no sign-ups.
         </p>
 
         <div className="setup__row">
           <label className="field field--course">
             <span>Course</span>
-            <input value={course} onChange={(e) => setCourse(e.target.value)} placeholder="CSCI 24000" maxLength={40} />
+            <input
+              value={course}
+              onChange={(e) => setCourse(e.target.value)}
+              placeholder="CSCI 24000"
+              maxLength={40}
+            />
           </label>
           <label className="field">
             <span>Lecture title</span>
-            <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Recursion & the call stack" maxLength={120} />
+            <input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Recursion & the call stack"
+              maxLength={120}
+            />
           </label>
         </div>
 
@@ -153,21 +194,38 @@ export default function HostSetup() {
           <span>Slides</span>
           {file ? (
             <div className="file">
-              <div className="file__icon" aria-hidden="true">PDF</div>
+              <div className="file__icon" aria-hidden="true">
+                PDF
+              </div>
               <div className="file__meta">
                 <strong>{file.name}</strong>
-                <small>{pageCount} slides, {formatSize(file.size)}</small>
+                <small>
+                  {pageCount} slides, {formatSize(file.size)}
+                </small>
               </div>
               <label className="file__replace">
                 Replace
-                <input type="file" accept="application/pdf" onChange={handleFile} hidden />
+                <input
+                  type="file"
+                  accept="application/pdf"
+                  onChange={handleFile}
+                  hidden
+                />
               </label>
             </div>
           ) : (
             <label className="drop">
-              <input type="file" accept="application/pdf" onChange={handleFile} hidden />
+              <input
+                type="file"
+                accept="application/pdf"
+                onChange={handleFile}
+                hidden
+              />
               <strong>Choose a PDF</strong>
-              <small>Export from PowerPoint, Keynote or Google Slides. Up to {MAX_MB} MB.</small>
+              <small>
+                Export from PowerPoint, Keynote or Google Slides. Up to {MAX_MB}{" "}
+                MB.
+              </small>
             </label>
           )}
           {fileError && <p className="setup__error">{fileError}</p>}
@@ -177,7 +235,10 @@ export default function HostSetup() {
           <legend>Alert me when</legend>
           <div className="segmented" role="radiogroup">
             {THRESHOLDS.map((t) => (
-              <label key={t.value} className={`segmented__option ${threshold === t.value ? "is-selected" : ""}`}>
+              <label
+                key={t.value}
+                className={`segmented__option ${threshold === t.value ? "is-selected" : ""}`}
+              >
                 <input
                   type="radio"
                   name="threshold"
@@ -190,18 +251,33 @@ export default function HostSetup() {
               </label>
             ))}
           </div>
-          <small className="setup__hint">You can turn these off while presenting.</small>
+          <small className="setup__hint">
+            You can turn these off while presenting.
+          </small>
         </fieldset>
 
         <hr />
 
         <div className="setup__footer">
           <span className="setup__privacy">No student names are collected</span>
-          <button type="button" className="btn btn--secondary" onClick={() => start(false)} disabled={busy}>
+          <button
+            type="button"
+            className="btn btn--secondary"
+            onClick={() => start(false)}
+            disabled={busy}
+          >
             Present without slides
           </button>
-          <button type="submit" className="btn btn--primary" disabled={busy || (!!fileError && !file)}>
-            {step === "creating" ? "Creating…" : step === "uploading" ? "Uploading slides…" : "Continue"}
+          <button
+            type="submit"
+            className="btn btn--primary"
+            disabled={busy || (!!fileError && !file)}
+          >
+            {step === "creating"
+              ? "Creating…"
+              : step === "uploading"
+                ? "Uploading slides…"
+                : "Continue"}
           </button>
         </div>
         {error && <p className="setup__error">{error}</p>}

@@ -4,6 +4,7 @@ import { joinSession, type Session } from "../lib/session";
 import { useSessionUpdates } from "../hooks/useSessionUpdates";
 import StudentRoom from "../components/StudentRoom";
 import Welcome from "../components/Welcome";
+import SessionEnded from "../components/SessionEnded";
 import "./Join.scss";
 
 const WELCOMED_KEY = "muddy:welcomed";
@@ -58,12 +59,30 @@ export default function Join() {
 
   // Joined: show the welcome once, then the room
   if (session && deviceId) {
+    if (session.status === "ended") {
+      return (
+        <SessionEnded
+          session={session}
+          onDone={() => {
+            setSession(null);
+            setDeviceId(null);
+            setCode("");
+            setError(null);
+            setParams({}, { replace: true }); // drop ?code=ABCD from the URL
+          }}
+        />
+      );
+    }
     if (showWelcome) {
       return (
         <Welcome
           session={session}
           onContinue={() => {
-            try { localStorage.setItem(WELCOMED_KEY, "1"); } catch { /* fine */ }
+            try {
+              localStorage.setItem(WELCOMED_KEY, "1");
+            } catch {
+              /* fine */
+            }
             setShowWelcome(false);
           }}
         />
@@ -86,7 +105,9 @@ export default function Join() {
         <input
           className="join__input"
           value={code}
-          onChange={(e) => setCode(e.target.value.toUpperCase().replace(/[^A-Z]/g, ""))}
+          onChange={(e) =>
+            setCode(e.target.value.toUpperCase().replace(/[^A-Z]/g, ""))
+          }
           maxLength={4}
           placeholder="ABCD"
           autoCapitalize="characters"
