@@ -4,6 +4,10 @@
 
 Built for the IU Indianapolis Education Hackathon (October 2026).
 
+## Project documentation
+
+Read the [Muddy Hackathon project documentation](<public/Muddy — Hackathon Documentation.docx>) for more details about the project.
+
 ---
 
 ## The problem
