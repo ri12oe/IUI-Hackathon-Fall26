@@ -103,3 +103,34 @@
 @media (prefers-reduced-motion: reduce) {
   .join__box.is-active:not(.is-filled)::after { animation: none; }
 }
+
+@media (min-width: 800px) {
+  .join {
+    width: 100%;
+    max-width: none;
+    align-items: center;
+    justify-content: center;
+    gap: 2rem;
+    padding: 3rem;
+  }
+
+  .join__top,
+  .join__privacy {
+    width: min(100%, 560px);
+  }
+
+  .join__body {
+    flex: initial;
+    width: min(100%, 560px);
+    padding: 2.5rem;
+    gap: 1.25rem;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-float);
+  }
+
+  .join h1 {
+    font-size: 2.8rem;
+  }
+}

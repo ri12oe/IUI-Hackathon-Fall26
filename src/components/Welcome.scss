@@ -47,3 +47,35 @@
 
   &__go { margin-top: auto; width: 100%; padding-block: 0.95rem; font-size: 1.05rem; }
 }
+
+@media (min-width: 800px) {
+  .welcome {
+    max-width: 860px;
+    justify-content: center;
+    gap: 1.4rem;
+    padding-block: 2.5rem;
+
+    h1 {
+      margin: 0;
+    }
+  }
+
+  .welcome__steps {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.75rem;
+
+    li {
+      min-height: 9rem;
+      padding: 1rem;
+      flex-direction: column;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-lg);
+    }
+  }
+
+  .welcome__go {
+    max-width: 320px;
+    margin: 0 auto;
+  }
+}

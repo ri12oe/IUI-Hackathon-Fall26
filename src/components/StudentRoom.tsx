@@ -85,9 +85,12 @@ export default function StudentRoom({ session, deviceId }: Props) {
 
   const isLost = lostUntil !== null && now < lostUntil;
   const left = isLost ? lostUntil - now : 0;
+  const hasVisibleSlides = Boolean(session.slides_url && !waiting);
 
   return (
-    <main className={`room ${isLost ? "room--lost" : ""}`}>
+    <main
+      className={`room ${isLost ? "room--lost" : ""} ${hasVisibleSlides ? "room--has-slide" : "room--no-slide"}`}
+    >
       <header className="room__header">
         <span className="room__chip">
           <i aria-hidden="true" /> Room {session.room_code}
@@ -101,7 +104,7 @@ export default function StudentRoom({ session, deviceId }: Props) {
         )}
       </header>
 
-      {session.slides_url && !waiting && (
+      {hasVisibleSlides && session.slides_url && (
         <div className="room__slide">
           <SlideViewer
             url={session.slides_url}
