@@ -248,7 +248,7 @@ npx tsx src/lib/confusion.check.ts
 `scripts/simulate-students.mjs` signs in a room of fake students that send heartbeats and taps through the same rules as real phones. Mark some slides as hard, and most students get lost there:
 
 ```bash
-node --env-file=.env scripts/simulate-students.mjs ABCD --students 20 --hard 3,6
+node --env-file=.env scripts/simulate-students.mjs ABCD --students 20 --hard 5,8
 ```
 
 Start a session, run the script with its room code, and present as usual. It stops when you end the session. Supabase limits anonymous sign-ins per hour, which you can raise under **Authentication → Rate Limits**.
