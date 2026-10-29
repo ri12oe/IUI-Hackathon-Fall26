@@ -251,7 +251,17 @@ npx tsx src/lib/confusion.check.ts
 node --env-file=.env scripts/simulate-students.mjs ABCD --students 20 --hard 5,8
 ```
 
+In this command, `ABCD` is the room code for the active session. `--students 20` starts 20 simulated students. `--hard 5,8` marks slides 5 and 8 as hard, so students are more likely to get lost on those slides; it does not guarantee that they will.
+
 Start a session, run the script with its room code, and present as usual. It stops when you end the session. Supabase limits anonymous sign-ins per hour, which you can raise under **Authentication → Rate Limits**.
+
+---
+
+## Demo PDF
+
+Place the PDF you plan to use for the demo at `public/demo.pdf`. Files in `public/` are served from the site root, so after deployment the PDF will be available at `/demo.pdf`.
+
+There is currently an existing demo PDF that we will use during the presentation. If needed, feel free to make any changes to it.
 
 ---
 
