@@ -3,6 +3,7 @@ import { sendEvent, type EventType } from "../lib/events";
 import { LOST_WINDOW_MS } from "../lib/confusion";
 import type { Session } from "../lib/session";
 import SlideViewer from "./SlideViewer";
+import { useWakeLock } from "../hooks/useWakeLock";
 import "./StudentRoom.scss";
 
 const HEARTBEAT_MS = 30_000;
@@ -27,6 +28,8 @@ export default function StudentRoom({ session, deviceId }: Props) {
   const lastTapRef = useRef(0);
 
   const waiting = session.status === "lobby";
+
+  const { active: screenAwake } = useWakeLock(session.status !== "ended");
 
   async function send(type: EventType) {
     try {
@@ -86,6 +89,7 @@ export default function StudentRoom({ session, deviceId }: Props) {
         <span className="room__chip">
           <i aria-hidden="true" /> Room {session.room_code}
         </span>
+        {screenAwake && <span className="room__awake">Screen stays on</span>}
         {!waiting && (
           <span className="room__slide-num">
             {session.current_slide}
