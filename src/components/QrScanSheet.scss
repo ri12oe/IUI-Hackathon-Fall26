@@ -1,0 +1,83 @@
+.scan {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: #000;
+  color: #fff;
+  display: grid;
+  place-items: center;
+
+  &__video {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  &__top {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: flex-end;
+    padding: calc(1rem + env(safe-area-inset-top)) 1rem 1rem;
+    background: linear-gradient(rgba(0, 0, 0, 0.5), transparent);
+  }
+
+  &__cancel {
+    font: inherit;
+    font-weight: 600;
+    color: #fff;
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    border-radius: var(--radius-md);
+    padding: 0.5rem 1rem;
+  }
+
+  // Four corner marks showing where to aim
+  &__frame {
+    position: relative;
+    width: min(70vw, 280px);
+    aspect-ratio: 1;
+
+    i {
+      position: absolute;
+      width: 2.25rem;
+      height: 2.25rem;
+      border: 4px solid var(--accent-heat);
+    }
+    i:nth-child(1) { top: 0; left: 0; border-right: none; border-bottom: none; border-top-left-radius: 14px; }
+    i:nth-child(2) { top: 0; right: 0; border-left: none; border-bottom: none; border-top-right-radius: 14px; }
+    i:nth-child(3) { bottom: 0; left: 0; border-right: none; border-top: none; border-bottom-left-radius: 14px; }
+    i:nth-child(4) { bottom: 0; right: 0; border-left: none; border-top: none; border-bottom-right-radius: 14px; }
+  }
+
+  &__tip {
+    position: absolute;
+    bottom: calc(2.5rem + env(safe-area-inset-bottom));
+    left: 1.5rem;
+    right: 1.5rem;
+    margin: 0;
+    padding: 0.75rem 1rem;
+    text-align: center;
+    font-weight: 500;
+    background: rgba(0, 0, 0, 0.55);
+    border-radius: var(--radius-lg);
+  }
+
+  &__blocked {
+    position: relative;
+    width: min(100% - 3rem, 360px);
+    padding: 1.5rem;
+    text-align: center;
+    color: var(--text-primary);
+    background: var(--bg-surface);
+    border-radius: var(--radius-lg);
+
+    strong { font-size: 1.15rem; }
+    p { margin: 0.5rem 0 1.25rem; color: var(--text-secondary); line-height: 1.5; }
+    .btn { width: 100%; }
+  }
+}

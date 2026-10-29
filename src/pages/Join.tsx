@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, lazy, Suspense } from "react";
 import { useSearchParams } from "react-router";
 import { joinSession, type Session } from "../lib/session";
 import { useSessionUpdates } from "../hooks/useSessionUpdates";
@@ -7,6 +7,8 @@ import Welcome from "../components/Welcome";
 import SessionEnded from "../components/SessionEnded";
 import Logo from "../components/Logo";
 import "./Join.scss";
+
+const QrScanSheet = lazy(() => import("../components/QrScanSheet"));
 
 const WELCOMED_KEY = "muddy:welcomed";
 function hasSeenWelcome() {
@@ -27,7 +29,7 @@ export default function Join() {
   const [showWelcome, setShowWelcome] = useState(() => !hasSeenWelcome());
   const autoJoinTried = useRef(false);
   const [focused, setFocused] = useState(false);
-  const [showScanHelp, setShowScanHelp] = useState(false);
+  const [scanning, setScanning] = useState(false);
 
   useSessionUpdates(session?.id, setSession);
 
@@ -187,16 +189,22 @@ export default function Join() {
         <button
           type="button"
           className="btn btn--secondary join__scan"
-          onClick={() => setShowScanHelp((v) => !v)}
-          aria-expanded={showScanHelp}
+          onClick={() => setScanning(true)}
         >
           Scan QR code
         </button>
-        {showScanHelp && (
-          <p className="join__scanhelp">
-            Open your phone's camera app and point it at the QR code on the
-            projector. It opens this page with the code already filled in.
-          </p>
+
+        {scanning && (
+          <Suspense fallback={<div className="scan" />}>
+            <QrScanSheet
+              onClose={() => setScanning(false)}
+              onCode={(scanned) => {
+                setScanning(false);
+                setCode(scanned);
+                join(scanned);
+              }}
+            />
+          </Suspense>
         )}
       </section>
 

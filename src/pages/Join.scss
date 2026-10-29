@@ -93,16 +93,6 @@
     &::before, &::after { content: ""; flex: 1; height: 1px; background: var(--border-default); }
   }
 
-  &__scanhelp {
-    margin: 0;
-    padding: 0.85rem 1rem;
-    text-align: left;
-    font-size: 0.9rem;
-    line-height: 1.5;
-    color: var(--text-secondary);
-    background: var(--bg-subtle);
-    border-radius: var(--radius-lg);
-  }
 
   &__privacy { text-align: center; font-size: 0.8rem; color: var(--text-muted); }
 }
