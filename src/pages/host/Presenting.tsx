@@ -1,6 +1,7 @@
 import {
   useEffect,
   useState,
+  useRef,
   type ChangeEvent,
   type Dispatch,
   type SetStateAction,
@@ -45,6 +46,8 @@ export default function Presenting({ session, setSession }: Props) {
     session.alert_threshold,
   );
   const visibleAlert = alertsOn ? alert : null;
+  const wantedRef = useRef(session.current_slide);
+  const savingRef = useRef(false);
 
   useEffect(() => {
     document.title = visibleAlert
@@ -52,18 +55,30 @@ export default function Presenting({ session, setSession }: Props) {
       : "Muddy";
   }, [visibleAlert]);
 
-  async function goTo(slide: number) {
+  // Saves one slide change at a time; if more presses came in meanwhile, saves the latest
+  async function saveSlide() {
+    if (savingRef.current) return;
+    savingRef.current = true;
+    try {
+      let target: number;
+      do {
+        target = wantedRef.current;
+        await setCurrentSlide(session.id, target);
+      } while (wantedRef.current !== target);
+    } catch {
+      setError("Couldn't sync the slide to students. Check your connection.");
+    } finally {
+      savingRef.current = false;
+    }
+  }
+
+  function goTo(slide: number) {
     const max = session.slide_count ?? Infinity;
     const next = Math.min(Math.max(1, slide), max);
-    if (next === session.current_slide) return;
-    const previous = session.current_slide;
-    setSession({ ...session, current_slide: next });
-    try {
-      await setCurrentSlide(session.id, next);
-    } catch (e) {
-      setSession((s) => (s ? { ...s, current_slide: previous } : s));
-      setError((e as { message?: string }).message ?? "Couldn't change slide.");
-    }
+    if (next === wantedRef.current) return;
+    wantedRef.current = next;
+    setSession((s) => (s ? { ...s, current_slide: next } : s));
+    saveSlide();
   }
   async function endSession() {
     setEnding(true);
@@ -95,10 +110,10 @@ export default function Presenting({ session, setSession }: Props) {
       }
       if (e.key === "ArrowRight" || e.key === "PageDown") {
         e.preventDefault();
-        goTo(session.current_slide + 1);
+        goTo(wantedRef.current + 1);   // next
       } else if (e.key === "ArrowLeft" || e.key === "PageUp") {
         e.preventDefault();
-        goTo(session.current_slide - 1);
+        goTo(wantedRef.current - 1);   // previous
       }
     };
     window.addEventListener("keydown", onKey);

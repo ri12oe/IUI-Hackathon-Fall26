@@ -42,7 +42,10 @@ export default function StudentRoom({ session, deviceId }: Props) {
 
   // Heartbeat: on join, every 30s, and when the tab comes back into view
   useEffect(() => {
-    const beat = () => sendEvent(session.id, deviceId, "heartbeat", slideRef.current).catch(() => {});
+    const beat = () =>
+      sendEvent(session.id, deviceId, "heartbeat", slideRef.current).catch(
+        () => {},
+      );
     beat();
     const id = setInterval(beat, HEARTBEAT_MS);
     const onVisible = () => document.visibilityState === "visible" && beat();
@@ -100,7 +103,11 @@ export default function StudentRoom({ session, deviceId }: Props) {
 
       {session.slides_url && !waiting && (
         <div className="room__slide">
-          <SlideViewer url={session.slides_url} page={session.current_slide} />
+          <SlideViewer
+            url={session.slides_url}
+            page={session.current_slide}
+            fit="contain"
+          />
         </div>
       )}
 
@@ -112,7 +119,9 @@ export default function StudentRoom({ session, deviceId }: Props) {
           </p>
         ) : isLost ? (
           <div className="room__sent">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5" /></svg>
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M20 6 9 17l-5-5" />
+            </svg>
             <span>
               <strong>Sent.</strong>
               Your instructor sees the count go up.
@@ -126,7 +135,10 @@ export default function StudentRoom({ session, deviceId }: Props) {
 
       <footer className="room__bottom">
         {isLost && (
-          <button className="btn btn--secondary room__gotit" onClick={handleGotIt}>
+          <button
+            className="btn btn--secondary room__gotit"
+            onClick={handleGotIt}
+          >
             Got it now
           </button>
         )}

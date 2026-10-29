@@ -104,15 +104,17 @@ export default function HostSetup() {
       return;
     }
 
+    let notice: string | null = null;
     if (withSlides && file) {
       setStep("uploading");
       try {
         await uploadSlides(session.id, file);
       } catch {
-        // The session exists, so carry on; the presenting screen still offers an upload box
+        notice =
+          "Your slides didn't upload. You can upload them again after pressing Start.";
       }
     }
-    navigate(`/host/${session.room_code}`);
+    navigate(`/host/${session.room_code}`, { state: { notice } });
   }
 
   function onSubmit(e: FormEvent) {
