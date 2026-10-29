@@ -1,0 +1,211 @@
+.report {
+  max-width: 1340px;
+  margin: 0 auto;
+  display: grid;
+  gap: 1.25rem;
+  padding: 1.25rem clamp(1rem, 3vw, 3rem) 3rem;
+
+  &--center { min-height: 100vh; place-content: center; justify-items: center; text-align: center; }
+
+  &__top { display: flex; align-items: center; gap: 1rem; }
+  &__crumb {
+    padding-left: 1rem;
+    border-left: 1px solid var(--border-default);
+    color: var(--text-secondary);
+    font-weight: 500;
+    span { margin: 0 0.35rem; color: var(--text-muted); }
+  }
+  &__new { margin-left: auto; }
+
+  &__head h1 { margin: 0.2rem 0 0; font-size: clamp(2rem, 3.5vw, 2.6rem); }
+  &__meta { margin: 0; font-size: 0.85rem; font-weight: 500; color: var(--text-secondary); }
+
+  &__card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-lg);
+    padding: 1.4rem 1.5rem;
+
+    h3 { margin: 0; font-family: var(--font-body); font-size: 1.05rem; font-weight: 600; letter-spacing: 0; }
+  }
+  &__card-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    p { margin: 0.15rem 0 0; color: var(--text-secondary); font-size: 0.85rem; }
+  }
+
+  // Takeaway
+  &__takeaway {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 2.5rem;
+    padding: 1.75rem 1.75rem 1.75rem 2rem;
+    border: 1.5px solid var(--accent-heat);
+
+    @media (max-width: 860px) { grid-template-columns: 1fr; }
+  }
+  &__takeaway-text {
+    display: grid;
+    gap: 0.75rem;
+    h2 { margin: 0; font-size: clamp(1.6rem, 2.6vw, 2.1rem); }
+    p { margin: 0; color: var(--text-secondary); line-height: 1.55; max-width: 62ch; }
+  }
+  &__tag {
+    justify-self: start;
+    padding: 0.2rem 0.65rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    border-radius: 999px;
+    background: var(--accent-heat-soft);
+  }
+  &__actions { display: flex; align-items: center; gap: 0.75rem; margin-top: 0.25rem; }
+  &__link { font: inherit; font-weight: 600; color: var(--text-secondary); background: none; border: none; cursor: pointer; }
+  &__hero-thumb {
+    width: 340px;
+    padding: 0;
+    border: none;
+    background: none;
+    cursor: zoom-in;
+    canvas { border: 1px solid var(--border-default); box-shadow: none; }
+  }
+
+  // Timeline
+  &__legend {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+    i { width: 1rem; height: 0.7rem; border-radius: 2px; }
+    i:first-of-type { margin-left: 0.35rem; }
+    i:last-of-type { margin-right: 0.35rem; }
+  }
+  &__cells {
+    display: flex;
+    gap: 2px;
+    height: 64px;
+    span { flex: 1 1 0; min-width: 2px; border-radius: 3px; }
+  }
+  &__lanes {
+    display: flex;
+    gap: 2px;
+    margin-top: 6px;
+    span {
+      flex-basis: 0;
+      min-width: 2px;
+      height: 1.4rem;
+      display: grid;
+      place-items: center;
+      font-size: 0.65rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      background: var(--bg-subtle);
+      border-radius: 4px;
+      overflow: hidden;
+      &.is-hot { background: var(--accent-heat-soft); color: var(--accent-strong); }
+    }
+  }
+  &__axis {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 0.5rem;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  // Bottom row
+  &__bottom {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 360px;
+    gap: 1.25rem;
+    align-items: start;
+    @media (max-width: 960px) { grid-template-columns: 1fr; }
+  }
+
+  &__ranked ol { list-style: none; margin: 0; padding: 0; }
+  &__ranked li + li { border-top: 1px solid var(--border-default); }
+  &__ranked button {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 96px minmax(0, 1fr) minmax(80px, 220px) 2.5ch;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.6rem 0.5rem;
+    font: inherit;
+    color: inherit;
+    text-align: left;
+    background: none;
+    border: none;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    &:hover:not(:disabled) { background: var(--bg-subtle); }
+    &:disabled { cursor: default; }
+
+    @media (max-width: 600px) { grid-template-columns: 64px minmax(0, 1fr) 2.5ch; .report__bar { display: none; } }
+  }
+  &__thumb canvas { border: 1px solid var(--border-default); box-shadow: none; }
+  &__tile {
+    display: grid;
+    place-items: center;
+    aspect-ratio: 16 / 9;
+    border-radius: var(--radius-sm);
+    font-weight: 700;
+    &.heat-4, &.heat-5 { color: var(--text-on-strong); }
+  }
+  &__rowtext { display: grid; small { color: var(--text-secondary); } }
+  &__bar {
+    height: 0.55rem;
+    border-radius: 999px;
+    background: var(--heat-0);
+    overflow: hidden;
+    span { display: block; height: 100%; border-radius: 999px; }
+  }
+  &__count { font-family: var(--font-display); font-weight: 800; font-size: 1.25rem; text-align: right; }
+  &__muted { margin: 0; color: var(--text-muted); }
+
+  &__summary dl { margin: 0.75rem 0 0; }
+  &__summary div {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.7rem 0;
+    & + div { border-top: 1px solid var(--border-default); }
+  }
+  &__summary dt { color: var(--text-secondary); }
+  &__summary dd { margin: 0; font-weight: 600; text-align: right; &.is-hot { color: var(--accent-strong); } }
+
+  &__error { color: var(--accent-strong); }
+
+  // Slide preview
+  &__modal {
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+    display: grid;
+    place-items: center;
+    padding: 1.5rem;
+    background: rgba(38, 38, 38, 0.5);
+  }
+  &__modal-card {
+    width: min(100%, 1100px);
+    height: min(100%, 720px);
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    gap: 0.75rem;
+    padding: 1rem 1.25rem 1.25rem;
+    background: var(--bg-surface);
+    border-radius: var(--radius-lg);
+  }
+  &__modal-head {
+    display: flex;
+    align-items: center;
+    button { margin-left: auto; font-size: 1.6rem; line-height: 1; color: var(--text-muted); background: none; border: none; cursor: pointer; }
+  }
+  &__modal-slide { min-height: 0; }
+}
