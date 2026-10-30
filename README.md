@@ -7,6 +7,8 @@ Built for the IU Indianapolis Education Hackathon (October 2026).
 ## Links
 
 https://hackathonfall26.vercel.app/join   (Student View)
+
+
 https://hackathonfall26.vercel.app/host   (Teacher View)
 
 ## Project documentation
