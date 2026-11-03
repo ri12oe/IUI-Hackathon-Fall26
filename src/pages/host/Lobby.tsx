@@ -7,7 +7,7 @@ import {
 } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import Logo from "../../components/Logo";
-import { useLiveConfusion } from "../../hooks/useLiveConfusion";
+import { useParticipantCount } from "../../hooks/useParticipantCount";
 import { updateSession, type Session } from "../../lib/session";
 import { useLocation } from "react-router";
 import "./Lobby.scss";
@@ -20,7 +20,7 @@ type Props = {
 const MAX_DOTS = 14;
 
 export default function Lobby({ session, setSession }: Props) {
-  const { stats, connected } = useLiveConfusion(session.id);
+  const { count: joined, connected } = useParticipantCount(session.id);
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const startingRef = useRef(false);
@@ -28,7 +28,6 @@ export default function Lobby({ session, setSession }: Props) {
   const baseUrl = import.meta.env.VITE_PUBLIC_URL ?? window.location.origin;
   const joinUrl = `${baseUrl}/join?code=${session.room_code}`;
   const shortUrl = `${new URL(baseUrl).host}/join`;
-  const joined = stats.active;
   const notice = (useLocation().state as { notice?: string } | null)?.notice;
 
   async function start() {

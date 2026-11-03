@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import Logo from "./Logo";
 import SlideViewer from "./SlideViewer";
-import { fetchLostEvents } from "../lib/events";
-import { confusionBySlide, type SlideConfusion } from "../lib/confusion";
+import { fetchMuddiestSlides } from "../lib/events";
+import { type SlideConfusion } from "../lib/confusion";
 import type { Session } from "../lib/session";
 import "./SessionEnded.scss";
 
@@ -16,10 +16,8 @@ export default function SessionEnded({ session, onDone }: Props) {
   useEffect(() => {
     if (!session.share_with_students) return;
     let cancelled = false;
-    fetchLostEvents(session.id)
-      .then(
-        (events) => !cancelled && setTop(confusionBySlide(events).slice(0, 3)),
-      )
+    fetchMuddiestSlides(session.id)
+      .then((slides) => !cancelled && setTop(slides))
       .catch(() => !cancelled && setFailed(true));
     return () => {
       cancelled = true;

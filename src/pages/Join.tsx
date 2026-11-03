@@ -93,7 +93,7 @@ export default function Join() {
         />
       );
     }
-    return <StudentRoom session={session} deviceId={deviceId} />;
+    return <StudentRoom session={session} />;
   }
 
   // Not joined yet: the join form (uses code, error and loading)
