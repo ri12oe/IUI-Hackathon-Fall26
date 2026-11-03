@@ -9,14 +9,14 @@ import "./StudentRoom.scss";
 const HEARTBEAT_MS = 30_000;
 const TAP_COOLDOWN_MS = 3_000;
 
-type Props = { session: Session; deviceId: string };
+type Props = { session: Session };
 
 function formatLeft(ms: number) {
   const s = Math.max(0, Math.ceil(ms / 1000));
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 }
 
-export default function StudentRoom({ session, deviceId }: Props) {
+export default function StudentRoom({ session }: Props) {
   const [lostUntil, setLostUntil] = useState<number | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const [error, setError] = useState<string | null>(null);
@@ -33,7 +33,7 @@ export default function StudentRoom({ session, deviceId }: Props) {
 
   async function send(type: EventType) {
     try {
-      await sendEvent(session.id, deviceId, type, slideRef.current);
+      await sendEvent(session.id, type, slideRef.current);
       setError(null);
     } catch {
       setError("Couldn't send. Check your connection and tap again.");
@@ -43,9 +43,7 @@ export default function StudentRoom({ session, deviceId }: Props) {
   // Heartbeat: on join, every 30s, and when the tab comes back into view
   useEffect(() => {
     const beat = () =>
-      sendEvent(session.id, deviceId, "heartbeat", slideRef.current).catch(
-        () => {},
-      );
+      sendEvent(session.id, "heartbeat", slideRef.current).catch(() => {});
     beat();
     const id = setInterval(beat, HEARTBEAT_MS);
     const onVisible = () => document.visibilityState === "visible" && beat();
@@ -54,7 +52,7 @@ export default function StudentRoom({ session, deviceId }: Props) {
       clearInterval(id);
       document.removeEventListener("visibilitychange", onVisible);
     };
-  }, [session.id, deviceId]);
+  }, [session.id]);
 
   // Countdown while marked lost
   useEffect(() => {

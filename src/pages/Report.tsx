@@ -30,12 +30,12 @@ export default function Report() {
     let cancelled = false;
     (async () => {
       try {
-        const { session, isHost } = await getHostSession(roomCode);
+        const lookup = await getHostSession(roomCode);
         if (cancelled) return;
-        if (!session) return setLoad({ kind: "missing" });
-        if (!isHost) return setLoad({ kind: "not-host" });
-        const events = await fetchAllEvents(session.id);
-        if (!cancelled) setLoad({ kind: "ready", session, events });
+        if (lookup.kind === "missing") return setLoad({ kind: "missing" });
+        if (lookup.kind === "not-host") return setLoad({ kind: "not-host" });
+        const events = await fetchAllEvents(lookup.session.id);
+        if (!cancelled) setLoad({ kind: "ready", session: lookup.session, events });
       } catch (e) {
         if (!cancelled) setLoad({ kind: "error", message: (e as { message?: string }).message ?? "Couldn't load the report." });
       }

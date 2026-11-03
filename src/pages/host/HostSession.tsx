@@ -30,11 +30,11 @@ export default function HostSession() {
     const finish = (next: Load) =>
       !cancelled && setResult({ roomCode, load: next });
     getHostSession(roomCode)
-      .then(({ session, isHost }) => {
+      .then((lookup) => {
         if (cancelled) return;
-        if (!session) return finish({ kind: "missing" });
-        if (!isHost) return finish({ kind: "not-host" });
-        setSession(session);
+        if (lookup.kind === "missing") return finish({ kind: "missing" });
+        if (lookup.kind === "not-host") return finish({ kind: "not-host" });
+        setSession(lookup.session);
         finish({ kind: "ready" });
       })
       .catch((e) =>

@@ -1,5 +1,7 @@
 import { supabase } from "./supabase.ts";
 
+const SLIDE_URL_SECONDS = 60 * 60 * 6;
+
 // NO I or O, so codes aren't easily confused with 1 or 0
 const LETTERS = "ABCDEFGHJKLMNPQRSTUVWXYZ";
 
@@ -28,6 +30,7 @@ export type Session = {
   room_code: string;
   current_slide: number;
   slide_count: number | null;
+  slides_path: string | null;
   slides_url: string | null;
   ended_at: string | null;
   course: string | null;
@@ -45,7 +48,30 @@ export type NewSessionInput = {
 };
 
 export const SESSION_COLUMNS =
-  "id, room_code, current_slide, slide_count, slides_url, ended_at, course, title, alert_threshold, status, presenting_started_at, share_with_students";
+  "id, room_code, current_slide, slide_count, slides_path, slides_url, ended_at, course, title, alert_threshold, status, presenting_started_at, share_with_students";
+
+export type HostSessionLookup =
+  | { kind: "ready"; session: Session }
+  | { kind: "missing" }
+  | { kind: "not-host" };
+
+// The database stores the object path. This mints a URL the PDF viewer can fetch.
+export async function signedSlideUrl(path: string | null): Promise<string | null> {
+  if (!path) return null;
+  const { data, error } = await supabase.storage
+    .from("slides")
+    .createSignedUrl(path, SLIDE_URL_SECONDS);
+  if (error || !data?.signedUrl) {
+    if (error) console.error(error);
+    return null;
+  }
+  return data.signedUrl;
+}
+
+export async function attachSlideUrl(session: Session): Promise<Session> {
+  const slides_url = await signedSlideUrl(session.slides_path);
+  return slides_url ? { ...session, slides_url } : session;
+}
 
 export async function createSession(input: NewSessionInput = {}): Promise<Session> {
   const user = await ensureSignedIn();
@@ -57,7 +83,7 @@ export async function createSession(input: NewSessionInput = {}): Promise<Sessio
       .select(SESSION_COLUMNS)
       .single();
 
-    if (!error) return data as Session;
+    if (!error) return attachSlideUrl(data as Session);
     if (error.code !== "23505") throw error;
   }
   throw new Error("Couldn't create a unique room code. Try again.");
@@ -74,16 +100,6 @@ export async function setCurrentSlide(sessionId: string, slide: number) {
     throw new Error("Not allowed to change slides for this session.");
 }
 
-export async function getSessionByCode(code: string): Promise<Session | null> {
-  await ensureSignedIn();
-  const { data, error } = await supabase
-    .from("sessions")
-    .select(SESSION_COLUMNS)
-    .eq("room_code", code.toUpperCase())
-    .maybeSingle();
-  if (error) throw error;
-  return data as Session | null;
-}
 
 export async function updateSession(
   sessionId: string,
@@ -97,32 +113,32 @@ export async function updateSession(
     .maybeSingle();
   if (error) throw error;
   if (!data) throw new Error("Not allowed to change this session.");
-  return data as Session;
+  return attachSlideUrl(data as Session);
 }
 
 export async function joinSession(code: string) {
   const user = await ensureSignedIn();
-  const session = await getSessionByCode(code);
-  if (!session) throw new Error("No session found with that code.");
-  return { session, deviceId: user.id };
+  const { data, error } = await supabase.rpc("join_session", {
+    p_code: code.toUpperCase(),
+  });
+  if (error) throw error;
+  if (!data) throw new Error("No session found with that code.");
+  return { session: await attachSlideUrl(data as Session), deviceId: user.id };
 }
 
-// Loads a session for the host screens and says whether this browser is its host
-export async function getHostSession(
-  code: string,
-): Promise<{ session: Session | null; isHost: boolean }> {
-  const user = await ensureSignedIn();
-  const { data, error } = await supabase
-    .from("sessions")
-    .select(`${SESSION_COLUMNS}, host_id`)
-    .eq("room_code", code.toUpperCase())
-    .maybeSingle();
-
+// The host gets the session. Anyone else learns only that the code exists.
+export async function getHostSession(code: string): Promise<HostSessionLookup> {
+  await ensureSignedIn();
+  const { data, error } = await supabase.rpc("host_session_lookup", {
+    p_code: code.toUpperCase(),
+  });
   if (error) throw error;
-  if (!data) return { session: null, isHost: false };
-
-  const { host_id, ...session } = data as Session & { host_id: string };
-  return { session: session as Session, isHost: host_id === user.id };
+  const lookup = data as { kind?: string; session?: Session } | null;
+  if (!lookup || lookup.kind === "missing" || !lookup.session) {
+    return lookup?.kind === "not-host" ? { kind: "not-host" } : { kind: "missing" };
+  }
+  if (lookup.kind !== "ready") return { kind: "not-host" };
+  return { kind: "ready", session: await attachSlideUrl(lookup.session) };
 }
 
 // The host's most recent unfinished session, if any (used to offer "Resume")
@@ -141,7 +157,7 @@ export async function getMyActiveSession(): Promise<Session | null> {
     .maybeSingle();
 
   if (error) throw error;
-  return data as Session | null;
+  return data ? attachSlideUrl(data as Session) : null;
 }
 
 

@@ -1,4 +1,5 @@
 // Simulates a room of students for testing Muddy.
+// Joins through join_session and sends taps through record_event, same as a phone.
 // Usage: node --env-file=.env scripts/simulate-students.mjs ABCD --students 20 --hard 3,7
 import { createClient } from "@supabase/supabase-js";
 
@@ -23,31 +24,38 @@ if (!/^[A-Z]{4}$/.test(code)) { console.error("Usage: node --env-file=.env scrip
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const rand = (a, b) => a + Math.random() * (b - a);
 
-// --- sign in N separate anonymous students ---
+// --- sign in N separate anonymous students and join the room ---
 console.log(`Signing in ${N} students…`);
 const students = [];
+let session = null;
 for (let i = 0; i < N; i++) {
   const sb = createClient(url, key, { auth: { persistSession: false } });
   const { data, error } = await sb.auth.signInAnonymously();
-  if (error) {
-    console.error(`Student ${i + 1} couldn't sign in: ${error.message}`);
+  if (error || !data?.user) {
+    console.error(`Student ${i + 1} couldn't sign in: ${error?.message ?? "no user"}`);
     if (students.length === 0) process.exit(1);
     break;
   }
-  students.push({ n: i + 1, sb, id: data.user.id, lostUntil: 0 });
+  const joined = await sb.rpc("join_session", { p_code: code });
+  if (joined.error || !joined.data) {
+    console.error(`Student ${i + 1} couldn't join: ${joined.error?.message ?? "no session"}`);
+    if (students.length === 0) process.exit(1);
+    break;
+  }
+  session = joined.data;
+  students.push({ n: i + 1, sb, lostUntil: 0 });
   await sleep(150);
 }
-
-const { data: session } = await students[0].sb
-  .from("sessions").select("id, current_slide, status").eq("room_code", code).maybeSingle();
 if (!session) { console.error(`No session with the code ${code}.`); process.exit(1); }
 
 let state = { slide: session.current_slide, status: session.status };
 console.log(`${students.length} students in room ${code}. Hard slides: ${[...hard].join(", ") || "none"}. Ctrl+C to stop.`);
 
 async function send(s, type) {
-  const { error } = await s.sb.from("events").insert({
-    session_id: session.id, device_id: s.id, type, slide: state.slide,
+  const { error } = await s.sb.rpc("record_event", {
+    p_session_id: session.id,
+    p_type: type,
+    p_slide: state.slide,
   });
   if (error) console.warn(`  student ${s.n} ${type} failed: ${error.message}`);
 }

@@ -1,6 +1,6 @@
 import { supabase } from "./supabase";
 import { getPageCount } from "./pdf";
-import { SESSION_COLUMNS, type Session } from "./session";
+import { attachSlideUrl, SESSION_COLUMNS, type Session } from "./session";
 
 const MAX_MB = 25;
 
@@ -16,15 +16,18 @@ export async function uploadSlides(sessionId: string, file: File): Promise<Sessi
     .upload(path, file, { contentType: "application/pdf" });
   if (uploadError) throw uploadError;
 
-  const { data: urlData } = supabase.storage.from("slides").getPublicUrl(path);
-
   const { data, error } = await supabase
     .from("sessions")
-    .update({ slides_url: urlData.publicUrl, slide_count: pageCount, current_slide: 1 })
+    .update({
+      slides_path: path,
+      slides_url: null,
+      slide_count: pageCount,
+      current_slide: 1,
+    })
     .eq("id", sessionId)
     .select(SESSION_COLUMNS)
     .single();
   if (error) throw error;
 
-  return data as Session;
+  return attachSlideUrl(data as Session);
 }
