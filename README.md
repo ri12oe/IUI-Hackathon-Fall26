@@ -141,9 +141,9 @@ In the Supabase dashboard:
 1. Turn on **Authentication → Sign In / Providers → Anonymous Sign-Ins**.
 2. For a new project, paste [`supabase/schema.sql`](supabase/schema.sql) into the **SQL Editor** and run it. The same script is below.
 
-Already running the older open policies? Don't re-run the whole script. Run [`supabase/migrations/20261103140000_privacy_boundaries.sql`](supabase/migrations/20261103140000_privacy_boundaries.sql), then [`supabase/migrations/20261103153000_room_code_rate_limit.sql`](supabase/migrations/20261103153000_room_code_rate_limit.sql).
+Already running the older open policies? Don't re-run the whole script. Run [`supabase/migrations/20261103140000_privacy_boundaries.sql`](supabase/migrations/20261103140000_privacy_boundaries.sql), then [`supabase/migrations/20261103153000_room_code_rate_limit.sql`](supabase/migrations/20261103153000_room_code_rate_limit.sql), then [`supabase/migrations/20261103170000_freeze_room_code.sql`](supabase/migrations/20261103170000_freeze_room_code.sql).
 
-Already applied the privacy migration? Run [`supabase/migrations/20261103153000_room_code_rate_limit.sql`](supabase/migrations/20261103153000_room_code_rate_limit.sql) only.
+Already applied the privacy migration? Run the rate-limit migration, then the freeze migration. Already applied the rate-limit migration? Run [`supabase/migrations/20261103170000_freeze_room_code.sql`](supabase/migrations/20261103170000_freeze_room_code.sql) only.
 
 <details>
 <summary>Database setup SQL</summary>
@@ -151,9 +151,11 @@ Already applied the privacy migration? Run [`supabase/migrations/20261103153000_
 ```sql
 -- Fresh Muddy database. Paste this into the Supabase SQL editor.
 -- Already applied an older version? Do not re-run this file.
---   Open policies only: run supabase/migrations/20261103140000_privacy_boundaries.sql
---   then supabase/migrations/20261103153000_room_code_rate_limit.sql.
---   Privacy migration already applied: run the rate-limit migration only.
+--   Open policies only: run supabase/migrations/20261103140000_privacy_boundaries.sql,
+--   then 20261103153000_room_code_rate_limit.sql,
+--   then 20261103170000_freeze_room_code.sql.
+--   Privacy migration already applied: run the rate-limit migration, then the freeze migration.
+--   Rate-limit migration already applied: run the freeze migration only.
 
 begin;
 
@@ -686,6 +688,28 @@ create trigger sessions_limit_create
 before insert on public.sessions
 for each row execute function public.limit_session_create();
 
+-- room_code is fixed at insert. An update that changes it would be an
+-- unthrottled existence check: unique violation means the code is taken.
+create or replace function public.freeze_room_code()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if new.room_code is distinct from old.room_code then
+    raise exception 'room code cannot be changed';
+  end if;
+  return new;
+end;
+$$;
+
+revoke all on function public.freeze_room_code() from public, anon, authenticated;
+
+create trigger sessions_freeze_room_code
+before update of room_code on public.sessions
+for each row execute function public.freeze_room_code();
+
 create or replace function public.join_session(p_code text)
 returns jsonb
 language plpgsql
@@ -1136,7 +1160,8 @@ src/
 - No names, emails, or student accounts. Each phone gets a random anonymous id, and that id stays in the database.
 - The browser never receives those ids. The live gauge, the report, and the student summary use counts or a per-lecture alias that changes every session.
 - A signed-in visitor can read a session only if they host it, or they joined it with the room code. Event rows are not readable from the client. Realtime tells the host that a new event landed; it does not stream the event rows.
-- Guessing a room code is limited per phone and per network. A wrong code does not join the room, and opening a code on the host page does not join it either. A student still joins by entering the code once.
+- Guessing a room code is limited per phone and per network. A wrong code does not join the room, and opening a code on the host page does not join it either. A student still joins by entering the code once. The room code is fixed when the session is created.
+- Per-network limits use the `cf-connecting-ip` header, or the first `x-forwarded-for` hop. Supabase's hosted API sends those. A request with neither header is limited per phone only.
 - Lost and got-it taps count only while the session is live, only from a phone that joined, and only a few times a minute. The server sets the timestamp. Lobby check-ins cannot inflate the number.
 - A phone that has been idle for 12 hours is no longer a member. Those rows are deleted the next time someone joins or a session is created.
 - Slide PDFs are in a private bucket. The app loads them with a signed URL that only the host and joined phones can mint.

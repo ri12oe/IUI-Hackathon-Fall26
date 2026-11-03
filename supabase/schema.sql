@@ -1,8 +1,10 @@
 -- Fresh Muddy database. Paste this into the Supabase SQL editor.
 -- Already applied an older version? Do not re-run this file.
---   Open policies only: run supabase/migrations/20261103140000_privacy_boundaries.sql
---   then supabase/migrations/20261103153000_room_code_rate_limit.sql.
---   Privacy migration already applied: run the rate-limit migration only.
+--   Open policies only: run supabase/migrations/20261103140000_privacy_boundaries.sql,
+--   then 20261103153000_room_code_rate_limit.sql,
+--   then 20261103170000_freeze_room_code.sql.
+--   Privacy migration already applied: run the rate-limit migration, then the freeze migration.
+--   Rate-limit migration already applied: run the freeze migration only.
 
 begin;
 
@@ -534,6 +536,28 @@ revoke all on function public.limit_session_create() from public, anon, authenti
 create trigger sessions_limit_create
 before insert on public.sessions
 for each row execute function public.limit_session_create();
+
+-- room_code is fixed at insert. An update that changes it would be an
+-- unthrottled existence check: unique violation means the code is taken.
+create or replace function public.freeze_room_code()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if new.room_code is distinct from old.room_code then
+    raise exception 'room code cannot be changed';
+  end if;
+  return new;
+end;
+$$;
+
+revoke all on function public.freeze_room_code() from public, anon, authenticated;
+
+create trigger sessions_freeze_room_code
+before update of room_code on public.sessions
+for each row execute function public.freeze_room_code();
 
 create or replace function public.join_session(p_code text)
 returns jsonb
