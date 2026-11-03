@@ -1,5 +1,6 @@
 // Simulates a room of students for testing Muddy.
 // Joins through join_session and sends taps through record_event, same as a phone.
+// A join that is told to slow down waits and tries again.
 // Usage: node --env-file=.env scripts/simulate-students.mjs ABCD --students 20 --hard 3,7
 import { createClient } from "@supabase/supabase-js";
 
@@ -24,6 +25,22 @@ if (!/^[A-Z]{4}$/.test(code)) { console.error("Usage: node --env-file=.env scrip
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const rand = (a, b) => a + Math.random() * (b - a);
 
+async function joinRoom(sb, n) {
+  for (let attempt = 0; attempt < 6; attempt++) {
+    const joined = await sb.rpc("join_session", { p_code: code });
+    if (!joined.error && joined.data) return joined.data;
+    const message = joined.error?.message ?? "";
+    if (/slow down/i.test(message) && attempt < 5) {
+      console.warn(`Student ${n} was told to slow down. Waiting, then trying again.`);
+      await sleep(1000 * (attempt + 1));
+      continue;
+    }
+    console.error(`Student ${n} couldn't join: ${message || "no session"}`);
+    return null;
+  }
+  return null;
+}
+
 // --- sign in N separate anonymous students and join the room ---
 console.log(`Signing in ${N} students…`);
 const students = [];
@@ -36,13 +53,12 @@ for (let i = 0; i < N; i++) {
     if (students.length === 0) process.exit(1);
     break;
   }
-  const joined = await sb.rpc("join_session", { p_code: code });
-  if (joined.error || !joined.data) {
-    console.error(`Student ${i + 1} couldn't join: ${joined.error?.message ?? "no session"}`);
+  const joined = await joinRoom(sb, i + 1);
+  if (!joined) {
     if (students.length === 0) process.exit(1);
     break;
   }
-  session = joined.data;
+  session = joined;
   students.push({ n: i + 1, sb, lostUntil: 0 });
   await sleep(150);
 }
