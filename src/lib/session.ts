@@ -116,23 +116,34 @@ export async function updateSession(
   return attachSlideUrl(data as Session);
 }
 
+function messageFrom(error: { message?: string } | null, fallback: string) {
+  const message = error?.message ?? "";
+  if (/slow down/i.test(message)) {
+    return "Too many tries. Wait a minute, then try the code again.";
+  }
+  return message || fallback;
+}
+
+// One code entry. The database enrolls only when this call finds the room and
+// the phone is still under the join cap. A wrong code does not create a member.
 export async function joinSession(code: string) {
   const user = await ensureSignedIn();
   const { data, error } = await supabase.rpc("join_session", {
     p_code: code.toUpperCase(),
   });
-  if (error) throw error;
+  if (error) throw new Error(messageFrom(error, "Couldn't join."));
   if (!data) throw new Error("No session found with that code.");
   return { session: await attachSlideUrl(data as Session), deviceId: user.id };
 }
 
-// The host gets the session. Anyone else learns only that the code exists.
+// The host gets the session. Looking up someone else's code does not enroll,
+// and shares the same guess limit as a wrong join.
 export async function getHostSession(code: string): Promise<HostSessionLookup> {
   await ensureSignedIn();
   const { data, error } = await supabase.rpc("host_session_lookup", {
     p_code: code.toUpperCase(),
   });
-  if (error) throw error;
+  if (error) throw new Error(messageFrom(error, "Couldn't load the session."));
   const lookup = data as { kind?: string; session?: Session } | null;
   if (!lookup || lookup.kind === "missing" || !lookup.session) {
     return lookup?.kind === "not-host" ? { kind: "not-host" } : { kind: "missing" };

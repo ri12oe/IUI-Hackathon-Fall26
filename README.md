@@ -141,15 +141,21 @@ In the Supabase dashboard:
 1. Turn on **Authentication → Sign In / Providers → Anonymous Sign-Ins**.
 2. For a new project, paste [`supabase/schema.sql`](supabase/schema.sql) into the **SQL Editor** and run it. The same script is below.
 
-Already running the older open policies? Don't re-run the whole script. Run [`supabase/migrations/20261103140000_privacy_boundaries.sql`](supabase/migrations/20261103140000_privacy_boundaries.sql) instead.
+Already running the older open policies? Don't re-run the whole script. Run [`supabase/migrations/20261103140000_privacy_boundaries.sql`](supabase/migrations/20261103140000_privacy_boundaries.sql), then [`supabase/migrations/20261103153000_room_code_rate_limit.sql`](supabase/migrations/20261103153000_room_code_rate_limit.sql), then [`supabase/migrations/20261103170000_freeze_room_code.sql`](supabase/migrations/20261103170000_freeze_room_code.sql).
+
+Already applied the privacy migration? Run the rate-limit migration, then the freeze migration. Already applied the rate-limit migration? Run [`supabase/migrations/20261103170000_freeze_room_code.sql`](supabase/migrations/20261103170000_freeze_room_code.sql) only.
 
 <details>
 <summary>Database setup SQL</summary>
 
 ```sql
 -- Fresh Muddy database. Paste this into the Supabase SQL editor.
--- Already deployed the old open policies? Run
--- supabase/migrations/20261103140000_privacy_boundaries.sql instead.
+-- Already applied an older version? Do not re-run this file.
+--   Open policies only: run supabase/migrations/20261103140000_privacy_boundaries.sql,
+--   then 20261103153000_room_code_rate_limit.sql,
+--   then 20261103170000_freeze_room_code.sql.
+--   Privacy migration already applied: run the rate-limit migration, then the freeze migration.
+--   Rate-limit migration already applied: run the freeze migration only.
 
 begin;
 
@@ -451,33 +457,71 @@ create trigger sessions_seed_presence
 after update on public.sessions
 for each row execute function public.seed_presence_on_live();
 
-create or replace function public.join_session(p_code text)
-returns jsonb
+-- Room-code guesses. Not in the API. The guessed code is not stored.
+-- probe: a wrong code, or a host lookup for a room this phone does not run.
+--   uid: 8 / minute, 30 / hour. ip: 40 / 10 seconds, 80 / minute, 400 / hour.
+-- enroll: the first join of a real code. A phone already in the room is free.
+--   uid: 8 / hour. ip: 150 / 10 seconds, 300 / minute, 600 / hour.
+-- create: inserting a session under a chosen code. A new code spends one when
+--   the insert commits. uid: 10 / hour. ip: 30 / hour.
+create schema if not exists private;
+
+create table private.room_code_probes (
+  id           bigint generated always as identity primary key,
+  kind         text not null check (kind in ('probe', 'enroll', 'create')),
+  subject      text not null check (subject in ('uid', 'ip')),
+  subject_key  text not null,
+  attempted_at timestamptz not null default now()
+);
+
+create index room_code_probes_lookup_idx
+  on private.room_code_probes (kind, subject, subject_key, attempted_at desc);
+create index room_code_probes_attempted_idx
+  on private.room_code_probes (attempted_at);
+
+alter table private.room_code_probes enable row level security;
+revoke all on schema private from public, anon, authenticated;
+revoke all on private.room_code_probes from public, anon, authenticated;
+
+create or replace function private.client_ip()
+returns inet
 language plpgsql
-volatile
-security definer
-set search_path = public
+stable
+security invoker
+set search_path = pg_catalog
 as $$
 declare
-  s public.sessions%rowtype;
+  headers json := current_setting('request.headers', true)::json;
+  raw text;
 begin
-  if auth.uid() is null then
-    raise exception 'not authenticated';
+  if headers is null then
+    return null;
   end if;
-
-  perform public.purge_idle_participants();
-
-  select * into s from public.sessions where room_code = upper(trim(p_code));
-  if not found then
-    raise exception 'No session found with that code.';
+  -- Cloudflare sets this. Otherwise the first forwarded hop, per Supabase's API guide.
+  raw := nullif(btrim(coalesce(headers->>'cf-connecting-ip', '')), '');
+  if raw is null then
+    raw := nullif(btrim(split_part(coalesce(headers->>'x-forwarded-for', ''), ',', 1)), '');
   end if;
+  if raw is null then
+    return null;
+  end if;
+  begin
+    return raw::inet;
+  exception
+    when invalid_text_representation then
+      return null;
+  end;
+end;
+$$;
 
-  insert into public.participants (session_id, device_id)
-  values (s.id, auth.uid())
-  on conflict (session_id, device_id) do update
-    set last_seen_at = now();
-
-  return jsonb_build_object(
+create or replace function private.session_payload(s public.sessions)
+returns jsonb
+language sql
+stable
+security invoker
+set search_path = pg_catalog
+as $$
+  select jsonb_build_object(
     'id', s.id,
     'room_code', s.room_code,
     'current_slide', s.current_slide,
@@ -492,6 +536,231 @@ begin
     'presenting_started_at', s.presenting_started_at,
     'share_with_students', s.share_with_students
   );
+$$;
+
+create or replace function private.consume_room_code_attempt(p_kind text)
+returns void
+language plpgsql
+security definer
+set search_path = pg_catalog
+as $$
+declare
+  v_uid uuid := auth.uid();
+  v_uid_key text;
+  v_ip_key text := host(private.client_ip());
+  v_burst integer;
+  v_minute integer;
+  v_hour integer;
+begin
+  if v_uid is null then
+    raise exception 'not authenticated';
+  end if;
+  if p_kind not in ('probe', 'enroll', 'create') then
+    raise exception 'invalid attempt';
+  end if;
+
+  v_uid_key := v_uid::text;
+  perform pg_advisory_xact_lock(hashtextextended('muddy-room-uid:' || v_uid_key, 0));
+  if v_ip_key is not null then
+    perform pg_advisory_xact_lock(hashtextextended('muddy-room-ip:' || v_ip_key, 0));
+  end if;
+
+  if pg_try_advisory_xact_lock(hashtextextended('muddy-room-purge', 0)) then
+    delete from private.room_code_probes
+    where attempted_at < now() - interval '1 hour';
+  end if;
+
+  if p_kind = 'probe' then
+    select
+      (count(*) filter (where attempted_at > now() - interval '60 seconds'))::integer,
+      (count(*) filter (where attempted_at > now() - interval '1 hour'))::integer
+    into v_minute, v_hour
+    from private.room_code_probes
+    where kind = 'probe'
+      and subject = 'uid'
+      and subject_key = v_uid_key
+      and attempted_at > now() - interval '1 hour';
+    if v_minute >= 8 or v_hour >= 30 then
+      raise exception 'slow down';
+    end if;
+
+    if v_ip_key is not null then
+      select
+        (count(*) filter (where attempted_at > now() - interval '10 seconds'))::integer,
+        (count(*) filter (where attempted_at > now() - interval '60 seconds'))::integer,
+        (count(*) filter (where attempted_at > now() - interval '1 hour'))::integer
+      into v_burst, v_minute, v_hour
+      from private.room_code_probes
+      where kind = 'probe'
+        and subject = 'ip'
+        and subject_key = v_ip_key
+        and attempted_at > now() - interval '1 hour';
+      if v_burst >= 40 or v_minute >= 80 or v_hour >= 400 then
+        raise exception 'slow down';
+      end if;
+    end if;
+  elsif p_kind = 'enroll' then
+    select (count(*))::integer
+    into v_hour
+    from private.room_code_probes
+    where kind = 'enroll'
+      and subject = 'uid'
+      and subject_key = v_uid_key
+      and attempted_at > now() - interval '1 hour';
+    if v_hour >= 8 then
+      raise exception 'slow down';
+    end if;
+
+    if v_ip_key is not null then
+      select
+        (count(*) filter (where attempted_at > now() - interval '10 seconds'))::integer,
+        (count(*) filter (where attempted_at > now() - interval '60 seconds'))::integer,
+        (count(*) filter (where attempted_at > now() - interval '1 hour'))::integer
+      into v_burst, v_minute, v_hour
+      from private.room_code_probes
+      where kind = 'enroll'
+        and subject = 'ip'
+        and subject_key = v_ip_key
+        and attempted_at > now() - interval '1 hour';
+      if v_burst >= 150 or v_minute >= 300 or v_hour >= 600 then
+        raise exception 'slow down';
+      end if;
+    end if;
+  else
+    select (count(*))::integer
+    into v_hour
+    from private.room_code_probes
+    where kind = 'create'
+      and subject = 'uid'
+      and subject_key = v_uid_key
+      and attempted_at > now() - interval '1 hour';
+    if v_hour >= 10 then
+      raise exception 'slow down';
+    end if;
+
+    if v_ip_key is not null then
+      select (count(*))::integer
+      into v_hour
+      from private.room_code_probes
+      where kind = 'create'
+        and subject = 'ip'
+        and subject_key = v_ip_key
+        and attempted_at > now() - interval '1 hour';
+      if v_hour >= 30 then
+        raise exception 'slow down';
+      end if;
+    end if;
+  end if;
+
+  insert into private.room_code_probes (kind, subject, subject_key)
+  values (p_kind, 'uid', v_uid_key);
+  if v_ip_key is not null then
+    insert into private.room_code_probes (kind, subject, subject_key)
+    values (p_kind, 'ip', v_ip_key);
+  end if;
+end;
+$$;
+
+revoke all on function private.client_ip() from public, anon, authenticated;
+revoke all on function private.session_payload(public.sessions) from public, anon, authenticated;
+revoke all on function private.consume_room_code_attempt(text) from public, anon, authenticated;
+
+-- Picking a room code by inserting a session is a lookup too. The guess counts
+-- only when the new row commits, so a collision does not enroll anyone.
+create or replace function public.limit_session_create()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if auth.uid() is null or new.host_id is distinct from auth.uid() then
+    raise exception 'not authenticated';
+  end if;
+  perform private.consume_room_code_attempt('create');
+  return new;
+end;
+$$;
+
+revoke all on function public.limit_session_create() from public, anon, authenticated;
+
+create trigger sessions_limit_create
+before insert on public.sessions
+for each row execute function public.limit_session_create();
+
+-- room_code is fixed at insert. An update that changes it would be an
+-- unthrottled existence check: unique violation means the code is taken.
+create or replace function public.freeze_room_code()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if new.room_code is distinct from old.room_code then
+    raise exception 'room code cannot be changed';
+  end if;
+  return new;
+end;
+$$;
+
+revoke all on function public.freeze_room_code() from public, anon, authenticated;
+
+create trigger sessions_freeze_room_code
+before update of room_code on public.sessions
+for each row execute function public.freeze_room_code();
+
+create or replace function public.join_session(p_code text)
+returns jsonb
+language plpgsql
+volatile
+security definer
+set search_path = public
+as $$
+declare
+  s public.sessions%rowtype;
+  v_code text := upper(trim(coalesce(p_code, '')));
+begin
+  if auth.uid() is null then
+    raise exception 'not authenticated';
+  end if;
+
+  perform public.purge_idle_participants();
+
+  if v_code ~ '^[A-Z]{4}$' then
+    select * into s from public.sessions where room_code = v_code;
+  end if;
+
+  -- Already in this room. Refresh presence; don't spend a guess or a new membership.
+  if s.id is not null and exists (
+    select 1 from public.participants p
+    where p.session_id = s.id
+      and p.device_id = auth.uid()
+      and p.last_seen_at > now() - interval '12 hours'
+  ) then
+    update public.participants
+    set last_seen_at = now()
+    where session_id = s.id
+      and device_id = auth.uid()
+      and last_seen_at < now() - interval '10 seconds';
+    return private.session_payload(s);
+  end if;
+
+  if s.id is null then
+    -- Wrong code. NULL (not an exception) so the guess commits. No participant row.
+    perform private.consume_room_code_attempt('probe');
+    return null;
+  end if;
+
+  -- Intentional join. Over the cap, raise before inserting.
+  perform private.consume_room_code_attempt('enroll');
+
+  insert into public.participants (session_id, device_id)
+  values (s.id, auth.uid())
+  on conflict (session_id, device_id) do update
+    set last_seen_at = now();
+
+  return private.session_payload(s);
 end;
 $$;
 
@@ -553,37 +822,28 @@ set search_path = public
 as $$
 declare
   s public.sessions%rowtype;
+  v_code text := upper(trim(coalesce(p_code, '')));
 begin
   if auth.uid() is null then
     raise exception 'not authenticated';
   end if;
 
-  select * into s from public.sessions where room_code = upper(trim(p_code));
-  if not found then
-    return jsonb_build_object('kind', 'missing');
-  end if;
-  if s.host_id is distinct from auth.uid() then
-    return jsonb_build_object('kind', 'not-host');
+  if v_code ~ '^[A-Z]{4}$' then
+    select * into s from public.sessions where room_code = v_code;
   end if;
 
-  return jsonb_build_object(
-    'kind', 'ready',
-    'session', jsonb_build_object(
-      'id', s.id,
-      'room_code', s.room_code,
-      'current_slide', s.current_slide,
-      'slide_count', s.slide_count,
-      'slides_url', null,
-      'slides_path', s.slides_path,
-      'ended_at', s.ended_at,
-      'course', s.course,
-      'title', s.title,
-      'alert_threshold', s.alert_threshold,
-      'status', s.status,
-      'presenting_started_at', s.presenting_started_at,
-      'share_with_students', s.share_with_students
-    )
-  );
+  -- Opening your own room is not a guess and does not enroll anyone.
+  if s.id is not null and s.host_id = auth.uid() then
+    return jsonb_build_object('kind', 'ready', 'session', private.session_payload(s));
+  end if;
+
+  -- A miss and someone else's room share the guess budget. Neither writes participants.
+  perform private.consume_room_code_attempt('probe');
+
+  if s.id is null then
+    return jsonb_build_object('kind', 'missing');
+  end if;
+  return jsonb_build_object('kind', 'not-host');
 end;
 $$;
 
@@ -855,7 +1115,7 @@ In this command, `ABCD` is the room code for the active session. `--students 20`
 
 Start a session, run the script with its room code, and present as usual. It stops when you end the session. Supabase limits anonymous sign-ins per hour, which you can raise under **Authentication → Rate Limits**.
 
-After the SQL is applied, `npx tsx src/lib/confusion.check.ts` should still print PASS for every case. The math is unchanged. A second browser can join the room code and move the lobby count; once class is live, "I'm lost" moves the gauge. That browser cannot read `events` or someone else's session, and slide URLs are signed rather than public.
+After the SQL is applied, `npx tsx src/lib/confusion.check.ts` should still print PASS for every case. The math is unchanged. A second browser can join the room code and move the lobby count; once class is live, "I'm lost" moves the gauge. That browser cannot read `events` or someone else's session, and slide URLs are signed rather than public. A wrong code does not join the room, and repeating it is rejected. The code on the projector still joins on the first try.
 
 ---
 
@@ -872,7 +1132,7 @@ There is currently an existing demo PDF that we will use during the presentation
 ```
 supabase/
 ├── schema.sql              full database setup for a new project
-└── migrations/             upgrade from the old open policies
+└── migrations/             upgrades for an existing project
 scripts/
 └── simulate-students.mjs   simulated classroom for testing
 src/
@@ -900,6 +1160,8 @@ src/
 - No names, emails, or student accounts. Each phone gets a random anonymous id, and that id stays in the database.
 - The browser never receives those ids. The live gauge, the report, and the student summary use counts or a per-lecture alias that changes every session.
 - A signed-in visitor can read a session only if they host it, or they joined it with the room code. Event rows are not readable from the client. Realtime tells the host that a new event landed; it does not stream the event rows.
+- Guessing a room code is limited per phone and per network. A wrong code does not join the room, and opening a code on the host page does not join it either. A student still joins by entering the code once. The room code is fixed when the session is created.
+- Per-network limits use the `cf-connecting-ip` header, or the first `x-forwarded-for` hop. Supabase's hosted API sends those. A request with neither header is limited per phone only.
 - Lost and got-it taps count only while the session is live, only from a phone that joined, and only a few times a minute. The server sets the timestamp. Lobby check-ins cannot inflate the number.
 - A phone that has been idle for 12 hours is no longer a member. Those rows are deleted the next time someone joins or a session is created.
 - Slide PDFs are in a private bucket. The app loads them with a signed URL that only the host and joined phones can mint.
